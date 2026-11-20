@@ -1,5 +1,5 @@
 import std/unicode
-import sorting, types
+import search, sorting, types, vi
 
 const
   VkBack = 0x08
@@ -19,7 +19,8 @@ type
     imNormal, imCommand, imSearch
 
   InputAction* = enum
-    iaNone, iaQuit, iaKillTagged
+    iaNone, iaQuit, iaKillTagged, iaSubmitCommand, iaSubmitSearch,
+    iaSearchNext, iaSearchPrevious
 
   UiState* = object
     processes*: seq[Process]
@@ -34,6 +35,9 @@ type
     cpuUsage*: float64
     inputMode*: InputMode
     inputText*: string
+    submittedText*: string
+    history*: ViHistory
+    search*: SearchState
     message*: string
     messageError*: bool
     caretVisible*: bool
@@ -69,7 +73,7 @@ proc ensureVisible(state: var UiState; visibleCount: int) =
 proc ensureUiVisible*(state: var UiState; visibleCount: int) =
   state.ensureVisible(visibleCount)
 
-proc setSort(state: var UiState; sortType: SortType; visibleCount: int) =
+proc setSort*(state: var UiState; sortType: SortType; visibleCount: int) =
   let selectedPid = state.currentProcessId()
   state.sortType = sortType
   sortProcesses(state.processes, state.sortType, state.sortOrder)
@@ -151,15 +155,52 @@ proc removeLastRune(text: var string) =
     dec index
   text.setLen(index)
 
-proc handleInputLine(state: var UiState; key: Key) =
+proc handleInputLine(state: var UiState; key: Key): InputAction =
   if key.vk == VkEscape:
     state.endInput()
+  elif key.vk == VkUp:
+    discard state.history.previous(state.inputText)
+  elif key.vk == VkDown:
+    discard state.history.next(state.inputText)
   elif key.vk == VkReturn:
+    state.submittedText = state.inputText
+    state.history.recordInput(state.inputText)
+    result =
+      if state.inputMode == imSearch: iaSubmitSearch else: iaSubmitCommand
     state.endInput()
   elif key.vk == VkBack:
     state.inputText.removeLastRune()
+    if state.inputText.len == 0:
+      state.endInput()
   elif key.ch != Rune(0) and state.inputText.runeLen < 1024:
     state.inputText.add($key.ch)
+
+proc applySearchResult(state: var UiState; searchResult: SearchResult;
+                       visibleCount: int) =
+  if searchResult.found:
+    state.followProcess = false
+    state.selectedIndex = searchResult.index
+    state.ensureVisible(visibleCount)
+  if searchResult.message.len > 0:
+    state.message = searchResult.message
+    state.messageError = searchResult.messageError
+  elif searchResult.found:
+    state.message.setLen(0)
+    state.messageError = false
+
+proc startSearch*(state: var UiState; pattern: string; visibleCount: int) =
+  state.search.startSearch(pattern)
+  if state.search.active:
+    state.applySearchResult(findSearchMatch(state.search, state.processes,
+      state.selectedIndex, sdNext), visibleCount)
+  else:
+    state.message.setLen(0)
+    state.messageError = false
+
+proc moveSearch*(state: var UiState; direction: SearchDirection;
+                 visibleCount: int) =
+  state.applySearchResult(findSearchMatch(state.search, state.processes,
+    state.selectedIndex, direction), visibleCount)
 
 proc handleKey*(state: var UiState; key: Key; visibleCount: int;
                 nowMs: uint64): InputAction =
@@ -169,8 +210,7 @@ proc handleKey*(state: var UiState; key: Key; visibleCount: int;
     return iaNone
 
   if state.inputMode != imNormal:
-    state.handleInputLine(key)
-    return iaNone
+    return state.handleInputLine(key)
 
   if key.vk in [VkUp, VkDown, VkPrior, VkNext]:
     state.scroll(key.vk, nowMs, visibleCount)
@@ -199,6 +239,10 @@ proc handleKey*(state: var UiState; key: Key; visibleCount: int;
   case ord(key.ch):
   of ord('q'):
     return iaQuit
+  of ord('n'):
+    return iaSearchNext
+  of ord('N'):
+    return iaSearchPrevious
   of ord('g'):
     state.followProcess = false
     state.selectedIndex = 0
@@ -230,10 +274,12 @@ proc handleKey*(state: var UiState; key: Key; visibleCount: int;
     state.inputMode = imCommand
     state.inputText = ":"
     state.message.setLen(0)
+    state.history.beginInput()
   of ord('/'):
     state.inputMode = imSearch
     state.inputText = "/"
     state.message.setLen(0)
+    state.history.beginInput()
   else:
     discard
 

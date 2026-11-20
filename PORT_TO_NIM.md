@@ -447,12 +447,14 @@ Estimates assume one developer; parallelizable phases are marked.
 - **Exit criteria:** Windows-target type-check and input-state tests pass; resize,
   scroll, tag/kill, follow, and sort switching are implemented.
 
-### Phase 4 — Search and Vi (1 day)
+### Phase 4 — Search and Vi (1 day) — implemented
 
-- `search.nim`: pattern storage, case-insensitive-if-lowercase rule, next/previous,
-  wrap messages.
-- `vi.nim`: tokenizer, command table, history, input line, messages.
-- `:exec`, `:kill`, `:sort`, `:tree`, `:q`.
+- [x] `search.nim`: pattern storage, case-insensitive-if-lowercase rule,
+  next/previous navigation, wrap and not-found messages.
+- [x] `vi.nim`: tokenizer, command table, history with clamped navigation, input line,
+  messages.
+- [x] `:exec`, `:kill`, `:sort`, `:tree`, `:q`/`:quit`, `:search`, and `/PATTERN`.
+- [x] Parser, history, and search unit tests.
 - **Exit criteria:** command/history/error behavior matches the C build; parser tests
   pass.
 
@@ -608,7 +610,7 @@ Use this as the working checklist; tick items as they land.
 - [ ] `AddChildProcess`, `FindParentChildProcesses`, `ProcessTreeToList` → `sorting.tree`
 - [ ] `ToggleTaggedProcess`, `IsProcessTagged`, `KillTaggedProcesses` → `processes.tags`
 - [ ] `SelectProcess`, `ReadjustCursor` → `input/selection`
-- [ ] `StartSearch`, `SearchMatchesProcess`, `SearchNext`, `SearchPrevious` → `search`
+- [x] `StartSearch`, `SearchMatchesProcess`, `SearchNext`, `SearchPrevious` → `search`
 - [ ] `DoScroll` + `SCROLL_*` → `input`
 - [ ] `ProcessInput` → `input`
 - [ ] `DrawProcessListHeader`, `DrawOptions` (unused?), `DrawPercentageBar`, `WriteProcessInfo` → `render`
@@ -618,15 +620,15 @@ Use this as the working checklist; tick items as they land.
 - [ ] `CtrlHandler` → `setControlCHook`
 - [ ] `main` arg parsing → `cli.parse`
 - [ ] `main` init sequence + main loop → `ntop.nim`
-- [ ] `ViMessage`/`SetViMessage`/`ClearViMessage` → `vi`
+- [x] `ViMessage`/`SetViMessage`/`ClearViMessage` → `vi`
 
 **vi.c → vi.nim**
 
-- [ ] `PushToHistory`, `HistoryPrevious`, `HistoryNext` → `vi.history`
-- [ ] `kill`, `tree`, `exec`, `q`/`quit`, `sort`, `search` commands
-- [ ] `PushArg`, `FreeCmdParseResult`, `EatSpaces`, `IsValidCharacter`, `ParseCommand`
-- [ ] `TryExec`, `ViInit`, `ViEnableInput`, `ViDisableInput`
-- [ ] `ViHandleInputKey`, `ViExecInput`
+- [x] `PushToHistory`, `HistoryPrevious`, `HistoryNext` → `vi.history`
+- [x] `kill`, `tree`, `exec`, `q`/`quit`, `sort`, `search` commands
+- [x] `PushArg`, `FreeCmdParseResult`, `EatSpaces`, `IsValidCharacter`, `ParseCommand`
+- [x] `TryExec`, `ViInit`, `ViEnableInput`, `ViDisableInput`
+- [x] `ViHandleInputKey`, `ViExecInput`
 
 **util.c → util.nim**
 

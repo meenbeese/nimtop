@@ -7,6 +7,8 @@ include test_sorting
 include test_filters
 include test_processformat
 include test_input
+include test_search
+include test_vi
 
 when defined(windows):
   include test_console

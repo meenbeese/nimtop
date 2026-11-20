@@ -56,8 +56,8 @@ $ winget install gsass1.NTop
 | <kbd>K</kbd> | Kill all tagged processes. |
 | <kbd>I</kbd> | Invert the sort order. |
 | <kbd>F</kbd> | Follow process: if the sort order causes the currently selected process to move in the list, make the selection bar follow it. Moving the cursor manually automatically disables this feature. |
-| <kbd>n</kbd> | Next in search. |
-| <kbd>N</kbd> | Previous in search. |
+| <kbd>/</kbd> | Search process names; lowercase patterns match case-insensitively. |
+| <kbd>n</kbd>, <kbd>N</kbd> | Next and previous search matches, wrapping at the ends. |
 
 ### Vi commands
 
@@ -69,6 +69,9 @@ $ winget install gsass1.NTop
 | `/PATTERN`, `:search` PATTERN | Do a search. |
 | `:sort` COLUMN | Sort the process list after the given column. |
 | `:tree` | View process tree. |
+
+Command and search lines support Up/Down history. `:kill` accepts one or more
+process IDs; `:exec` starts the given Windows command.
 
 ## Configuration
 
@@ -93,9 +96,9 @@ $ nimble build -d:release
 $ nimble test
 ```
 
-The Nim port includes Windows process/system information acquisition and an
-interactive process monitor. Use `-p`, `-n`, `-u`, and `-s` to filter or sort
-the process list; `-d` prints it and exits. See
+The Nim port includes Windows process/system information acquisition, an
+interactive process monitor, process-name search, and Vi commands. Use `-p`,
+`-n`, `-u`, and `-s` to filter or sort the process list; `-d` prints it and exits. See
 [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for the full plan.
 
 ## TODO

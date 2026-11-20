@@ -20,7 +20,7 @@
 import std/[exitprocs, locks, os, strutils]
 import winim
 import ntop/[cli, config, console, input, processes, processformat, render,
-  sorting, sysinfo, types, version]
+  search, sorting, sysinfo, types, version, vi]
 
 var gConsole: Console
 
@@ -95,6 +95,102 @@ proc killTaggedProcesses(state: var UiState) =
     state.message = "Tagged processes terminated"
     state.messageError = false
 
+proc showViMessage(state: var UiState; message: ViMessage) =
+  state.message = message.text
+  state.messageError = message.kind == vmError
+
+proc executeViCommand(state: var UiState; command: ViCommand;
+                      visibleCount: int): bool =
+  case command.kind
+  of vcExec:
+    if command.args.len == 0:
+      state.showViMessage(ViMessage(text: "Usage: exec COMMAND",
+        kind: vmError))
+      return
+
+    var commandLine = newWideCString(command.args.join(" "))
+    var startupInfo: STARTUPINFOW
+    startupInfo.cb = DWORD(sizeof(startupInfo))
+    var processInfo: PROCESS_INFORMATION
+    if CreateProcessW(nil, cast[LPWSTR](addr commandLine[0]), nil, nil,
+        WINBOOL(0), DWORD(0), nil, nil, addr startupInfo, addr processInfo) == 0:
+      state.showViMessage(ViMessage(
+        text: "Failed to create process (Win32 error " & $GetLastError() & ")",
+        kind: vmError))
+      return
+    discard CloseHandle(processInfo.hThread)
+    discard CloseHandle(processInfo.hProcess)
+
+  of vcKill:
+    if command.args.len == 0:
+      state.showViMessage(ViMessage(text: "Usage: kill PID(s)",
+        kind: vmError))
+      return
+
+    var failures: seq[string]
+    for pidText in command.args:
+      var pid: uint64
+      try:
+        pid = parseBiggestUInt(pidText)
+      except ValueError:
+        failures.add("Not a valid pid: " & pidText)
+        continue
+      if pid == 0 or pid > uint64(high(uint32)):
+        failures.add("Not a valid pid: " & pidText)
+        continue
+
+      let processHandle = OpenProcess(DWORD(PROCESS_TERMINATE), WINBOOL(0),
+        DWORD(pid))
+      if processHandle == 0 or processHandle == INVALID_HANDLE_VALUE:
+        failures.add("Could not open process: " & $pid &
+          " (Win32 error " & $GetLastError() & ")")
+        continue
+      if TerminateProcess(processHandle, DWORD(9)) == 0:
+        failures.add("Failed to kill process: " & $pid &
+          " (Win32 error " & $GetLastError() & ")")
+      discard CloseHandle(processHandle)
+
+    if failures.len > 0:
+      state.showViMessage(ViMessage(text: failures.join("; "), kind: vmError))
+
+  of vcQuit:
+    return true
+
+  of vcSort:
+    if command.args.len != 1:
+      state.showViMessage(ViMessage(text: "Usage: sort COLUMN",
+        kind: vmError))
+      return
+    var sortType: SortType
+    if not sortTypeFromName(command.args[0], sortType):
+      state.showViMessage(ViMessage(
+        text: "Unknown column: " & command.args[0], kind: vmError))
+      return
+    state.setSort(sortType, visibleCount)
+
+  of vcTree:
+    if command.args.len != 0:
+      state.showViMessage(ViMessage(text: "Error: trailing characters",
+        kind: vmError))
+      return
+    state.setSort(stTree, visibleCount)
+
+  of vcSearch:
+    if command.args.len != 1:
+      state.showViMessage(ViMessage(text: "Usage: search pattern",
+        kind: vmError))
+      return
+    if command.args[0].len > 0:
+      state.startSearch(command.args[0], visibleCount)
+
+proc executeViInput(state: var UiState; inputLine: string;
+                    visibleCount: int): bool =
+  let parsed = parseViCommand(inputLine)
+  if not parsed.success:
+    state.showViMessage(parsed.message)
+    return
+  state.executeViCommand(parsed.command, visibleCount)
+
 proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
   gConsole = initConsole(interactive = true)
   addExitProc(restoreConsole)
@@ -147,6 +243,16 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
           quitRequested = true
         of iaKillTagged:
           state.killTaggedProcesses()
+        of iaSubmitCommand, iaSubmitSearch:
+          let submittedText = state.submittedText
+          state.submittedText.setLen(0)
+          if state.executeViInput(submittedText,
+              max(0, gConsole.height - 8)):
+            quitRequested = true
+        of iaSearchNext:
+          state.moveSearch(sdNext, max(0, gConsole.height - 8))
+        of iaSearchPrevious:
+          state.moveSearch(sdPrevious, max(0, gConsole.height - 8))
         of iaNone:
           discard
         dirty = true

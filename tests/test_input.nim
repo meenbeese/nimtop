@@ -1,5 +1,5 @@
 import std/[unicode, unittest]
-import ntop/[input, types]
+import ntop/[input, search, types]
 
 func sampleProcesses(): ProcessSnapshot =
   ProcessSnapshot(processes: @[
@@ -58,6 +58,35 @@ suite "interactive input state":
     discard state.handleKey(key(0x1B), 3, 300)
     check state.inputMode == imNormal
     check state.inputText.len == 0
+
+  test "search input submits and n/N navigate matches":
+    var state = initUiState(sortOrder = soAscending)
+    state.setProcesses(ProcessSnapshot(processes: @[
+      Process(id: 1, exeName: "one.exe"),
+      Process(id: 2, exeName: "two.exe"),
+      Process(id: 3, exeName: "TWO-copy.exe")
+    ]), 3)
+    discard state.handleKey(key(0, Rune(ord('/'))), 3, 100)
+    discard state.handleKey(key(0, Rune(ord('t'))), 3, 200)
+    check state.handleKey(key(0x0D), 3, 300) == iaSubmitSearch
+    check state.submittedText == "/t"
+    state.startSearch("t", 3)
+    check state.processes[state.selectedIndex].id == 2
+    check state.handleKey(key(0, Rune(ord('n'))), 3, 400) == iaSearchNext
+    state.moveSearch(sdNext, 3)
+    check state.processes[state.selectedIndex].id == 3
+    check state.handleKey(key(0, Rune(ord('N'))), 3, 500) ==
+      iaSearchPrevious
+    state.moveSearch(sdPrevious, 3)
+    check state.processes[state.selectedIndex].id == 2
+
+  test "command input submits the line for Vi dispatch":
+    var state = initUiState()
+    discard state.handleKey(key(0, Rune(ord(':'))), 3, 100)
+    discard state.handleKey(key(0, Rune(ord('q'))), 3, 200)
+    check state.handleKey(key(0x0D), 3, 300) == iaSubmitCommand
+    check state.submittedText == ":q"
+    check state.inputMode == imNormal
 
   test "sort changes preserve the selected process":
     var state = initUiState(sortOrder = soAscending)
