@@ -82,6 +82,21 @@ Use CMake or use the build.bat file. Only tested with Visual Studio 2017.
 $ cmake . # For enabling Unicode support: cmake -DENABLE_UNICODE=ON .
 ```
 
+### Nim port (in progress)
+
+The port to Nim lives in [`src/`](src) and is built with Nim 2.x and
+[`winim`](https://github.com/khchen/winim):
+
+```sh
+$ nimble install -d
+$ nimble build -d:release
+$ nimble test
+```
+
+Phase 0 provides the Win32 console wrapper and a smoke test. Running `NTop.exe`
+without options draws a colored bootstrap screen and waits for a key; `-h` and
+`-v` work as before. See [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for the full plan.
+
 ## TODO
 
 * ~~Figure out buggy resizing.~~

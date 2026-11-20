@@ -246,3 +246,10 @@ ModelManifest.xml
 
 ntop.exe
 *.swp
+
+# Nim build outputs
+nimcache/
+NTop.exe
+artifact/
+tests/test_all
+tests/test_all.exe

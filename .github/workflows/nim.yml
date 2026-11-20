@@ -1,0 +1,44 @@
+name: NTop Nim CI
+
+# Phase 0 CI: build the Nim port on Windows and run its test suite.
+# The C build remains in ci.yml/pr.yml until the port reaches parity.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "2.4.2"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: nimble install -y --depsOnly
+
+      - name: Build
+        run: nimble build -d:release
+
+      - name: Test
+        run: nimble test
+
+      - name: Stage artifact
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Copy-Item ntop.exe artifact\NTop.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NTop-nim-windows
+          path: artifact/NTop.exe
+          if-no-files-found: error
