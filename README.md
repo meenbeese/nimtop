@@ -69,17 +69,14 @@ The Windows backend uses [`winim`](https://github.com/khchen/winim), installed
 automatically as a Windows-only dependency:
 
 ```sh
-$ nimble install -y --depsOnly
-$ nimble release
-$ nimble test
+nimble install -y --depsOnly
+nimble release
+nimble test
 ```
 
 The release task embeds the package version and produces `nimtop.exe` on
 Windows or `nimtop` on Linux and macOS. macOS uses the system `libproc`, Mach,
 and POSIX APIs; it requires no additional Nimble dependency.
-
-The original C sources remain as a parity reference; Nimble is the supported
-build system.
 
 The Nim build includes process/system information, the interactive monitor,
 process-name search, and Vi commands. The port also fixes issues in the original

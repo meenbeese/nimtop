@@ -1,6 +1,9 @@
 # Porting nimtop to Nim — Plan
 
-Status: **draft plan** · Target: legacy C feature parity · License: GPL-3.0 (unchanged)
+Status: **historical port plan** · Target: legacy C feature parity · License: GPL-3.0 (unchanged)
+
+The legacy C sources described here have been removed from the repository. This
+document retains historical migration notes; Nim is the sole supported implementation.
 
 ## 1. Executive summary
 
@@ -25,7 +28,9 @@ The port should:
 Estimated effort: **7–9 engineering days** for one developer familiar with Nim and Win32,
 plus 1–2 days of manual parity testing on real Windows terminals.
 
-## 2. What exists today
+## 2. Legacy C source layout (historical)
+
+The original source layout before the Nim port was:
 
 | File | LOC | Responsibility |
 |:--|--:|:--|
@@ -517,11 +522,11 @@ Estimates assume one developer; parallelizable phases are marked.
 - Console smoke test: start interactive, send keys via a small helper (or manual),
   assert exit on `q`/`F10`, resize handling.
 
-**Parity harness (manual or scripted)**
+**Historical parity harness (manual or scripted)**
 
-- Run the legacy Windows C binary and Nim `nimtop.exe` on the same machine seconds
-  apart; compare
-  header and normalized rows (PID set may differ).
+- When the legacy Windows C binary is available, run it and Nim `nimtop.exe` on
+  the same machine seconds apart; compare header and normalized rows (PID set
+  may differ).
 - Screenshot comparison for interactive mode at 80×24, 120×30, 200×50.
 
 **Soak**
