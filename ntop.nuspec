@@ -1,22 +1,22 @@
 <?xml version="1.0"?>
 <package xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <metadata>
-    <id>ntop.portable</id>
-    <title>NTop</title>
+    <id>nimtop.portable</id>
+    <title>nimtop</title>
     <version>0.3.3</version>
     <authors>Gian Sass</authors>
     <owners>Gian Sass</owners>
     <summary>htop-like system-monitor for Windows with Vi-keybindings</summary>
     <description>htop-like system-monitor with Vi-emulation for Windows. Because using Task Manager is not cool enough.</description>
-    <projectUrl>https://github.com/Nuke928/NTop</projectUrl>
-    <projectSourceUrl>https://github.com/Nuke928/NTop</projectSourceUrl>
-    <packageSourceUrl>https://github.com/Nuke928/NTop/blob/master/ntop.nuspec</packageSourceUrl>
+    <projectUrl>https://github.com/meenbeese/nimtop</projectUrl>
+    <projectSourceUrl>https://github.com/meenbeese/nimtop</projectSourceUrl>
+    <packageSourceUrl>https://github.com/meenbeese/nimtop/blob/master/ntop.nuspec</packageSourceUrl>
     <tags>htop top console-application c system-monitor</tags>
-    <licenseUrl>https://github.com/Nuke928/NTop/blob/master/LICENSE</licenseUrl>
+    <licenseUrl>https://github.com/meenbeese/nimtop/blob/master/LICENSE.txt</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <bugTrackerUrl>https://github.com/Nuke928/NTop/issues</bugTrackerUrl>
-    <docsUrl>https://github.com/Nuke928/NTop/blob/master/README.md</docsUrl>
-    <releaseNotes>https://github.com/Nuke928/NTop/releases</releaseNotes>
+    <bugTrackerUrl>https://github.com/meenbeese/nimtop/issues</bugTrackerUrl>
+    <docsUrl>https://github.com/meenbeese/nimtop/blob/master/README.md</docsUrl>
+    <releaseNotes>https://github.com/meenbeese/nimtop/releases</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />

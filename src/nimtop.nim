@@ -15,7 +15,7 @@
 
 ## NTop — Nim port.
 ##
-## NTop entry point and interactive application loop.
+## nimtop entry point and interactive application loop.
 
 import std/[exitprocs, locks, os, strutils]
 import winim
@@ -199,7 +199,7 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
     gConsole.restore()
 
   discard gConsole.refreshSize()
-  gConsole.setTitle("NTop " & NTopVersion)
+  gConsole.setTitle("nimtop " & NTopVersion)
   gConsole.hideCursor()
   let visibleCount = max(0, gConsole.height - 8)
 

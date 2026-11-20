@@ -1,32 +1,28 @@
-# NTop
+# Nimtop
 
-[![Latest Release](https://img.shields.io/github/release/Nuke928/NTop.svg)](https://github.com/Nuke928/NTop/releases/latest)
+[![Latest Release](https://img.shields.io/github/release/meenbeese/nimtop.svg)](https://github.com/meenbeese/nimtop/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-htop-like system-monitor with Vi-emulation for Windows. Because using Task Manager is not cool enough.
-
-![NTop](https://user-images.githubusercontent.com/4589491/56905702-3c3d5c80-6a90-11e9-991c-b7a398742614.PNG)
-
-NTop as in Windows NT-op or NukeTop. Whatever you prefer (the latter obviously).
+Nimtop is an htop-like process monitor for Windows, implemented in [Nim](https://nim-lang.org) with Vi-style commands.
 
 ## Installation
 
 ### Chocolatey
 
 ```sh
-$ choco install ntop.portable
+$ choco install nimtop.portable
 ```
 
 ### Scoop
 
 ```sh
-$ scoop install ntop
+$ scoop install nimtop
 ```
 
 ### Winget
 
 ```sh
-$ winget install gsass1.NTop
+$ winget install meenbeese.nimtop
 ```
 
 ## Usage
@@ -65,7 +61,7 @@ $ winget install gsass1.NTop
 |:---|:---|
 | `:exec` CMD | Executes the given Windows command. |
 | `:kill` PID(s) | Kill all given processes. |
-| `:q`, `:quit` | Quit NTop. |
+| `:q`, `:quit` | Quit nimtop. |
 | `/PATTERN`, `:search` PATTERN | Do a search. |
 | `:sort` COLUMN | Sort the process list after the given column. |
 | `:tree` | View process tree. |
@@ -75,7 +71,8 @@ process IDs; `:exec` starts the given Windows command.
 
 ## Configuration
 
-The color scheme can be customized through the [ntop.conf](ntop.conf) file. Follow link for example.
+The color scheme can be customized through the [nimtop.conf](nimtop.conf) file.
+Existing `ntop.conf` files are still read as a compatibility fallback.
 
 ## Building
 

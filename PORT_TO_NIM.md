@@ -1,10 +1,10 @@
-# Porting NTop to Nim — Plan
+# Porting nimtop to Nim — Plan
 
-Status: **draft plan** · Target: NTop 0.3.x feature parity · License: GPL-3.0 (unchanged)
+Status: **draft plan** · Target: legacy C feature parity · License: GPL-3.0 (unchanged)
 
 ## 1. Executive summary
 
-NTop is a ~2,700-line Windows-only C program (Win32 console + Toolhelp/PSAPI/registry)
+The legacy implementation is a ~2,700-line Windows-only C program (Win32 console + Toolhelp/PSAPI/registry)
 that renders an htop-like process monitor with Vi-style commands. It is a good porting
 candidate: one platform, no third-party runtime dependencies, a small number of Win32
 APIs, and a naturally modular structure hidden inside three `.c` files.
@@ -19,7 +19,7 @@ The port should:
 3. Split `ntop.c` into focused modules and introduce a **screen-buffer abstraction** so
    rendering can be tested headlessly.
 4. Fix the latent memory/UB bugs listed in §9 while porting, behind a parity test suite.
-5. Ship a single self-contained `NTop.exe` built by Nimble, with the same packaging
+5. Ship a single self-contained `nimtop.exe` built by Nimble, with the same packaging
    (Chocolatey/Scoop/Winget payload) and Windows CI.
 
 Estimated effort: **7–9 engineering days** for one developer familiar with Nim and Win32,
@@ -35,7 +35,7 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 | `ntop.h` | 54 | Sort-type enum, shared prototypes, Vi message types |
 | `vi.h` | 35 | Vi input API |
 | `util.h` | 53 | `TCHAR` helpers, `NORETURN` |
-| `ntop.conf` | 16 | Colors + redraw interval |
+| `nimtop.conf` | 16 | Colors + redraw interval |
 | `CMakeLists.txt`, `build.bat` | — | Build (MSVC 2017; optional Unicode) |
 | `ntop.nuspec`, `.github/workflows/*` | — | Chocolatey package + Windows CI |
 
@@ -60,7 +60,7 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 - Vi: `:exec`, `:kill`, `:q`/`:quit`, `:sort`, `:tree`, `/PATTERN`, `:search`.
 - Config keys: `FGColor`, `BGColor`, `FGHighlightColor`, `BGHighlightColor`,
   `MenuBarColor`, `ProcessListHeaderColor`, `ErrorColor`, `CPUBarColor`,
-  `MemoryBarColor`, `PageMemoryBarColor`, `RedrawInterval`; `ntop.conf` next to the exe;
+  `MemoryBarColor`, `PageMemoryBarColor`, `RedrawInterval`; `nimtop.conf` next to the exe;
   values parsed like C `strtol(..., 0)` (decimal or `0x` hex).
 - Layout: menu bar, blank, CPU bar + name/cores + tasks, memory bar + size, page bar +
   uptime, blank, column header, process rows, status/input line at `height-2`.
@@ -73,7 +73,7 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 - Byte-for-byte-compatible CLI/config/command behavior (modulo fixed bugs).
 - Identical visual layout and color semantics on Windows 10/11 (conhost and Windows
   Terminal), including resize handling.
-- Single `NTop.exe`, no DLLs beyond system libraries, no external runtime.
+- Single `nimtop.exe`, no DLLs beyond system libraries, no external runtime.
 - Windows x64 primary; x86 build optional.
 - Unit tests for pure logic; a headless mode test for integration.
 - Keep GPL-3.0 headers and attribution.
@@ -117,7 +117,7 @@ src/
   ntop/consts.nim       # layout, color masks, version, limits
   ntop/util.nim         # die, time/memory formatting, FILETIME math, conversions
   ntop/console.nim      # Win32 console wrapper: buffers, colors, cursor, WriteConsoleW
-  ntop/config.nim       # ntop.conf discovery + parsing
+  ntop/config.nim       # nimtop.conf discovery + parsing
   ntop/sysinfo.nim      # CPU name/freq/cores, memory, uptime, computer name
   ntop/processes.nim    # snapshot + enrichment + filters
   ntop/sorting.nim      # comparators, tree construction/flattening
@@ -393,8 +393,9 @@ type
   print `Unknown option: 'x'` and exit 1, `-h`/`-v` print and exit 0.
 - Keep help text and ordering identical; add the missing `-d` documentation (already in
   help, missing from README).
-- Config discovery: `getAppFilename().parentDir / "ntop.conf"`; parse `KEY VALUE` lines,
-  ignore comments/blank lines, parse values with `0x` hex support, unknown keys ignored.
+- Config discovery: `getAppFilename().parentDir / "nimtop.conf"` (fall back to
+  `ntop.conf`); parse `KEY VALUE` lines, ignore comments/blank lines, parse values
+  with `0x` hex support, unknown keys ignored.
 - Preserve defaults from `ntop.c` (`Config` and `MonochromeConfig`), including the
   `FGColor`/`BGColor` values. Fix the `BGHighlightColor` bug (§9 #1).
 - Exit codes: 0 for help/version/normal quit/non-interactive, 1 for bad options and
@@ -406,15 +407,15 @@ Estimates assume one developer; parallelizable phases are marked.
 
 ### Phase 0 — Bootstrap (0.5 day) — implemented
 
-- [x] Add `ntop.nimble`, `config.nims`, `src/ntop.nim` skeleton.
+- [x] Add `ntop.nimble`, `config.nims`, `src/nimtop.nim` skeleton.
 - [x] Declare `winim` in `ntop.nimble`; verified with Nim 2.4.2 + mingw-w64
   (Windows CI uses the native Windows toolchain).
 - [x] Implement `src/ntop/console.nim` (alternative screen buffer, colors,
   cursor, `WriteConsoleW`, resize, key input, idempotent restore) and the
-  bootstrap smoke screen in `src/ntop.nim`.
+  bootstrap smoke screen in `src/nimtop.nim`.
 - [x] Add `nimble test` (`tests/test_all.nim`) and Windows CI
-  (`.github/workflows/nim.yml`) that builds and uploads `NTop.exe`.
-- **Exit criteria:** CI produces `NTop.exe`; console smoke test runs on Windows.
+  (`.github/workflows/nim.yml`) that builds and uploads `nimtop.exe`.
+- **Exit criteria:** CI produces `nimtop.exe`; console smoke test runs on Windows.
   The smoke screen draws color swatches, Unicode text, and a process-table
   preview, then waits for a key and restores the original buffer.
 
@@ -424,7 +425,7 @@ Estimates assume one developer; parallelizable phases are marked.
   `formatMemoryString`), FILETIME math, color masks.
 - [x] `config.nim` + tests (including hex values and the `BGHighlightColor` case).
 - [x] `cli.nim` + help/version + tests.
-- **Exit criteria:** unit tests pass; `NTop.exe -h`, `-v`, bad option behave like C.
+- **Exit criteria:** unit tests pass; `nimtop.exe -h`, `-v`, bad option behave like C.
 
 ### Phase 2 — Process acquisition (1.5 days) — implemented
 
@@ -491,7 +492,7 @@ Estimates assume one developer; parallelizable phases are marked.
 
 **Integration (Windows CI or local)**
 
-- `NTop.exe -d` against a fixture machine: header present, row count = process count,
+- `nimtop.exe -d` against a fixture machine: header present, row count = process count,
   filters reduce rows as expected.
 - `-p` with a known PID; `-n` with a substring; `-u` with the current user; `-s` for
   each column (exit 0) and an invalid column (exit 1).
@@ -500,7 +501,7 @@ Estimates assume one developer; parallelizable phases are marked.
 
 **Parity harness (manual or scripted)**
 
-- Run C `NTop.exe -d` and Nim `NTop.exe -d` on the same machine seconds apart; compare
+- Run C `nimtop.exe -d` and Nim `nimtop.exe -d` on the same machine seconds apart; compare
   header and normalized rows (PID set may differ).
 - Screenshot comparison for interactive mode at 80×24, 120×30, 200×50.
 
@@ -519,13 +520,13 @@ author        = "Gian Sass"
 description   = "htop-like system monitor for Windows with Vi keybindings"
 license       = "GPL-3.0-only"
 srcDir        = "src"
-bin           = @["ntop"]
+bin           = @["nimtop"]
 
 requires "nim >= 2.0.0"
 requires "winim >= 3.9.0"
 
 task release, "Build the release binary":
-  exec "nim c -d:release --opt:speed --app:console --out:NTop.exe src/ntop.nim"
+  exec "nim c -d:release --opt:speed --app:console --out:nimtop.exe src/nimtop.nim"
 ```
 
 `config.nims`:
@@ -544,21 +545,21 @@ CI (`windows-latest`):
 - run: nimble build -d:release
 - run: nimble test
 - uses: actions/upload-artifact@v4
-  with: { name: NTop.exe, path: NTop.exe }
+  with: { name: nimtop.exe, path: nimtop.exe }
 ```
 
 Cross-compile from macOS/Linux for quick checks:
 
 ```sh
 nim c -d:release --os:windows --cpu:amd64 --cc:gcc \
-  --passC:-static --out:NTop.exe src/ntop.nim
+  --passC:-static --out:nimtop.exe src/nimtop.nim
 ```
 
 (Requires `mingw-w64`; not a substitute for Windows CI.)
 
-Release: keep the same artifact name `NTop.exe` and directory layout so
-Chocolatey/Scoop/Winget manifests keep working. Update `ntop.nuspec` only if the
-version or file paths change.
+Release: use the artifact name `nimtop.exe` and directory layout; update
+Chocolatey/Scoop/Winget manifests to the renamed package as needed. Update
+`ntop.nuspec` only if the version or file paths change.
 
 ## 16. Risks and mitigations
 

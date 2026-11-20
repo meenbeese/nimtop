@@ -1,5 +1,5 @@
 when not defined(windows):
-  {.error: "NTop system information is Windows-only.".}
+  {.error: "nimtop system information is Windows-only.".}
 
 import std/widestrs
 import winim

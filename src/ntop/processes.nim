@@ -1,5 +1,5 @@
 when not defined(windows):
-  {.error: "NTop process acquisition is Windows-only.".}
+  {.error: "nimtop process acquisition is Windows-only.".}
 
 import std/os
 import winim

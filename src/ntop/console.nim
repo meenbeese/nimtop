@@ -25,7 +25,7 @@
 ## and a console control handler.
 
 when not defined(windows):
-  {.error: "NTop's console layer is Windows-only.".}
+  {.error: "nimtop's console layer is Windows-only.".}
 
 import std/unicode
 import winim
@@ -34,7 +34,7 @@ export types.Key
 
 const
   # Console attribute bits. Kept as WORD constants so they compose with the
-  # color values parsed from ntop.conf.
+  # color values parsed from nimtop.conf.
   AttrForegroundBlue* = WORD(FOREGROUND_BLUE)
   AttrForegroundGreen* = WORD(FOREGROUND_GREEN)
   AttrForegroundRed* = WORD(FOREGROUND_RED)
@@ -277,7 +277,7 @@ proc tryReadKey*(c: Console; key: var Key; timeoutMs: DWORD): bool =
       return false
 
 proc initConsole*(interactive = true): Console =
-  ## Creates (or adopts) the console screen buffer used by NTop.
+  ## Creates (or adopts) the console screen buffer used by nimtop.
   result.interactive = interactive
   result.inputHandle = GetStdHandle(STD_INPUT_HANDLE)
   result.previousHandle = GetStdHandle(STD_OUTPUT_HANDLE)

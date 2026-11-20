@@ -14,7 +14,7 @@ type
     sortColumnSet*: bool
     filters*: Filters
 
-proc helpText*(argv0 = "NTop.exe"): string =
+proc helpText*(argv0 = "nimtop.exe"): string =
   result = versionString() & "\n\n"
   result.add("USAGE\n")
   result.add("  " & argv0 & " [OPTIONS]\n\n")
@@ -46,7 +46,7 @@ proc sortTypeFromName*(name: string; sortType: var SortType): bool =
 proc errorResult(message: string): CliResult =
   CliResult(kind: ckError, message: message)
 
-proc parseCli*(args: openArray[string]; argv0 = "NTop.exe"): CliResult =
+proc parseCli*(args: openArray[string]; argv0 = "nimtop.exe"): CliResult =
   result.kind = ckRun
   result.interactive = true
   var i = 0

@@ -21,4 +21,4 @@ const
 
 func versionString*(): string =
   ## Returns the one-line version banner used by `-v` and `--help`.
-  "NTop " & NTopVersion & " (Nim " & NimVersion & ")"
+  "nimtop " & NTopVersion & " (Nim " & NimVersion & ")"

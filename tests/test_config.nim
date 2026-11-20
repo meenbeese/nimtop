@@ -1,4 +1,4 @@
-import std/unittest
+import std/[os, tempfiles, unittest]
 import ntop/[config, consts]
 
 suite "config":
@@ -24,3 +24,22 @@ suite "config":
     check default.redrawInterval == 1000
     check mono.redrawInterval == 1000
     check mono.bgHighlightColor == BackgroundWhite
+
+  test "nimtop.conf is preferred with ntop.conf as a legacy fallback":
+    let tempDir = createTempDir("nimtop-config-", "")
+    defer:
+      removeFile(tempDir / "nimtop.conf")
+      removeFile(tempDir / "ntop.conf")
+      removeDir(tempDir)
+
+    let path = configPath(tempDir / "nimtop.exe")
+    check path == tempDir / "nimtop.conf"
+    writeFile(tempDir / "ntop.conf", "FGColor 0x41\n")
+    var config = defaultConfig()
+    readConfigFile(path, config)
+    check config.fgColor == 0x41'u16
+
+    writeFile(path, "FGColor 0x42\n")
+    config = defaultConfig()
+    readConfigFile(path, config)
+    check config.fgColor == 0x42'u16

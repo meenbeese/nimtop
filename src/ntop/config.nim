@@ -83,10 +83,15 @@ proc parseConfigLine*(config: var Config; line: string) =
     discard
 
 func configPath*(executablePath: string): string =
-  executablePath.parentDir / "ntop.conf"
+  executablePath.parentDir / "nimtop.conf"
 
 proc readConfigFile*(path: string; config: var Config) =
-  if not fileExists(path):
-    return
-  for line in lines(path):
+  var sourcePath = path
+  if not fileExists(sourcePath):
+    if extractFilename(path).toLowerAscii() != "nimtop.conf":
+      return
+    sourcePath = path.parentDir / "ntop.conf"
+    if not fileExists(sourcePath):
+      return
+  for line in lines(sourcePath):
     parseConfigLine(config, line)

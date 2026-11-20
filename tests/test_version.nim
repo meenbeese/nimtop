@@ -2,8 +2,8 @@ import std/[strutils, unittest]
 import ntop/version
 
 suite "version":
-  test "version banner identifies NTop and Nim":
+  test "version banner identifies nimtop and Nim":
     let banner = versionString()
-    check banner.startsWith("NTop ")
+    check banner.startsWith("nimtop ")
     check banner.contains("Nim ")
-    check banner.len > len("NTop ")
+    check banner.len > len("nimtop ")

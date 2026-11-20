@@ -185,9 +185,13 @@ static void ReadConfigFile(void)
         *lastSlash = '\0';
         
     // Construct config file path
-    snprintf(configPath, MAX_PATH, "%s\\ntop.conf", exePath);
+    snprintf(configPath, MAX_PATH, "%s\\nimtop.conf", exePath);
     
     Error = fopen_s(&File, configPath, "r");
+    if(Error != 0) {
+        snprintf(configPath, MAX_PATH, "%s\\ntop.conf", exePath);
+        Error = fopen_s(&File, configPath, "r");
+    }
     if(Error != 0) {
 		OutputDebugStringA("Did not open config file!\n");
         return;
@@ -1272,7 +1276,7 @@ static void DoScroll(scroll_type ScrollType, BOOL *Redraw)
 
 static void PrintVersion(void)
 {
-	ConPrintf(_T("NTop " STRINGIZE_VALUE_OF(NTOP_VER) " - (C) 2019 Gian Sass\n"));
+	ConPrintf(_T("nimtop " STRINGIZE_VALUE_OF(NTOP_VER) " - (C) 2019 Gian Sass\n"));
 	ConPrintf(_T("Compiled on " __DATE__ " " __TIME__ "\n"));
 
 #ifdef _UNICODE
@@ -1351,7 +1355,7 @@ static void PrintHelp(const TCHAR *argv0)
 	const help_entry ViCommands[] = {
 		{ _T(":exec CMD\n"), _T("\tExecutes the given Windows command.") },
 		{ _T(":kill PID(s)\n"), _T("\tKill all given processes.") },
-		{ _T(":q, :quit\n"), _T("\tQuit NTop.") },
+		{ _T(":q, :quit\n"), _T("\tQuit nimtop.") },
 		{ _T("/PATTERN, :search PATTERN\n"), _T("\tDo a search.") },
 		{ _T(":sort COLUMN\n"), _T("\tSort the process list after the given column.") },
 		{ _T(":tree"), _T("View process tree.") },
@@ -1761,7 +1765,7 @@ int _tmain(int argc, TCHAR *argv[])
 	PollProcessList(50);
 
 	TCHAR MenuBar[256] = { 0 };
-	wsprintf(MenuBar, _T("NTop on %s"), ComputerName);
+	wsprintf(MenuBar, _T("nimtop on %s"), ComputerName);
 
 	ProcessListThread = CreateThread(0, 0, PollProcessListThreadProc, 0, 0, 0);
 

@@ -1,5 +1,5 @@
 when not defined(windows):
-  {.error: "NTop's interactive renderer is Windows-only.".}
+  {.error: "nimtop's interactive renderer is Windows-only.".}
 
 import std/[strutils, unicode]
 import winim
@@ -147,7 +147,7 @@ proc render*(screen: var Screen; state: UiState; host: HostInfo;
   let accent = WORD(config.fgHighlightColor)
   screen.fillRect(0, 0, screen.width, screen.height, normal)
 
-  let menu = "NTop on " & host.computerName
+  let menu = "nimtop on " & host.computerName
   screen.fill(0, 0, screen.width,
     combined(config.fgColor, config.menuBarColor))
   screen.put(max(0, (screen.width - menu.runeLen) div 2), 0, menu,
