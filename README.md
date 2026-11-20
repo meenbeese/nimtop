@@ -21,11 +21,14 @@ nimble install nimtop
 | `-C` | Use monochrome color scheme. |
 | `-h` | Display help info. |
 | `-p` PID, PID... | Show only the given PIDs. |
-| `-n` NamePart, NamePart... | Show processes whose executable name contains any supplied substring (case-sensitive). |
-| `-s` COLUMN | Sort by this column. |
-| `-u` USERNAME | Only display processes belonging to this user. |
+| `-n` NUMBER | Exit after the specified number of interactive screen updates. |
+| `-N` NamePart, NamePart... | Show processes whose executable name contains any supplied substring (case-sensitive). |
+| `-F` FILTER | Show commands matching this case-insensitive text filter. |
+| `-s` COLUMN | Sort by this column; use `-s help` to list valid names. |
+| `-t` | Start in process tree view. |
+| `-u` [USER\|UID] | Only display processes belonging to this user or numeric user ID (UID filtering is unavailable on Windows); omit the value to use the current user. |
 | `-d` | Print the process table and exit instead of opening the interactive monitor. |
-| `-v` | Print version. |
+| `-v`, `-V` | Print version. |
 
 ### Interactive commands
 
@@ -90,12 +93,3 @@ process-name search, and Vi commands. The port also fixes issues in the original
 implementation, including sort overflow, tree flattening, invalid PID handling,
 and unsafe input/history buffers. See [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for
 implementation and compatibility details.
-
-## TODO
-
-* ~~Figure out buggy resizing.~~
-* ~~View process tree.~~
-* ~~Searching.~~
-* ~~Interactive filtering.~~
-* All of htop's command line options.
-* At least the most important interactive commands (e.g. ~~following processes~~).

@@ -18,6 +18,8 @@ type
   Process* = object
     id*: uint32
     userName*: string
+    userId*: uint32
+    userIdValid*: bool
     basePriority*: int32
     percentProcessorTime*: float64
     usedMemory*: uint64
@@ -63,6 +65,11 @@ type
     pidList*: seq[uint32]
     nameParts*: seq[string]
     userName*: string
+    userId*: uint32
+    commandFilter*: string
     filterByPid*: bool
     filterByName*: bool
     filterByUser*: bool
+    filterByUserId*: bool
+    filterByCurrentUser*: bool
+    filterByCommand*: bool

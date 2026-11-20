@@ -108,11 +108,15 @@ proc readUserNames(): Table[uint32, string] =
     except ValueError:
       discard
 
-proc processUserName(pid: uint32; names: Table[uint32, string]): string =
-  let uid = readUid(optionalFile("/proc/" & $pid & "/status"))
+proc processUserName(uid: tuple[found: bool, uid: uint32];
+                     names: Table[uint32, string]): string =
   if not uid.found:
     return "?"
   names.getOrDefault(uid.uid, $uid.uid)
+
+proc currentUserName*(): string =
+  let uid = uint32(posix.getuid())
+  readUserNames().getOrDefault(uid, $uid)
 
 proc processMemoryBytes(pid: uint32; pageSize: uint64): uint64 =
   let fields = strutils.splitWhitespace(
@@ -149,10 +153,13 @@ proc readProcessSample(pid: uint32; names: Table[uint32, string];
   if processName.len == 0:
     processName = stat.command
   let ioBytes = processIoBytes(pid)
+  let uid = readUid(optionalFile("/proc/" & $pid & "/status"))
   sample = ProcessSample(
     process: ntopTypes.Process(
       id: pid,
-      userName: processUserName(pid, names),
+      userName: processUserName(uid, names),
+      userId: uid.uid,
+      userIdValid: uid.found,
       basePriority: stat.priority,
       usedMemory: processMemoryBytes(pid, pageSize),
       threadCount: stat.threadCount,

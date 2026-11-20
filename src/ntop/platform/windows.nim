@@ -316,6 +316,9 @@ proc processUserName(processHandle: HANDLE): string =
       addr nameUse) != 0:
     result = $cast[LPWSTR](addr userName[0])
 
+proc currentUserName*(): string =
+  processUserName(GetCurrentProcess())
+
 proc readIoOperations(processHandle: HANDLE): uint64 =
   var counters: IO_COUNTERS
   if GetProcessIoCounters(processHandle, addr counters) != 0:

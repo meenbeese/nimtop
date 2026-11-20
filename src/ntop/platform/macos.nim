@@ -261,6 +261,10 @@ proc processUserName(uid: uint32; cache: var Table[uint32, string]): string =
     result = $uid
   cache[uid] = result
 
+proc currentUserName*(): string =
+  var users = initTable[uint32, string]()
+  processUserName(uint32(posix.getuid()), users)
+
 proc processName(pid: cint; info: ProcBsdInfo): string =
   result = cStringValue(info.pbi_name)
   if result.len == 0:
@@ -283,7 +287,9 @@ proc readProcessSample(pid: cint; users: var Table[uint32, string];
 
   let process = ntopTypes.Process(
     id: bsdInfo.pbi_pid,
-    userName: processUserName(bsdInfo.pbi_uid, users),
+    userName: processUserName(bsdInfo.pbi_ruid, users),
+    userId: bsdInfo.pbi_ruid,
+    userIdValid: true,
     basePriority: bsdInfo.pbi_nice,
     usedMemory: taskInfo.pti_resident_size,
     threadCount: uint32(max(0, taskInfo.pti_threadnum)),

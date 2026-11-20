@@ -165,7 +165,8 @@ proc executeViInput(state: var UiState; inputLine: string;
     return
   state.executeViCommand(parsed.command, visibleCount)
 
-proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
+proc runInteractive(sortType: SortType; filters: Filters; config: Config;
+                    maxIterations: uint64; maxIterationsSet: bool) =
   gConsole = initConsole(interactive = true)
   addExitProc(restoreConsole)
   registerConsoleControlHandler(restoreConsole)
@@ -199,6 +200,7 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
   let systemPollInterval = max(1'u64, config.redrawInterval)
   var dirty = true
   var quitRequested = false
+  var renderedUpdates = 0'u64
   gConsole.flushInput()
 
   while not quitRequested:
@@ -273,6 +275,9 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
       screen.render(state, host, config)
       screen.flush(gConsole)
       dirty = false
+      inc renderedUpdates
+      if maxIterationsSet and renderedUpdates >= maxIterations:
+        quitRequested = true
 
 when isMainModule:
   var args: seq[string]
@@ -281,7 +286,10 @@ when isMainModule:
   let parsedCli = parseCli(args)
 
   if parsedCli.kind == ckHelp:
-    printHelp()
+    if parsedCli.message.len > 0:
+      stdout.write(parsedCli.message)
+    else:
+      printHelp()
   elif parsedCli.kind == ckVersion:
     echo versionString()
   elif parsedCli.kind == ckError:
@@ -289,15 +297,25 @@ when isMainModule:
     quit(1)
   else:
     let sortType = if parsedCli.sortColumnSet: parsedCli.sortColumn else: stId
+    var filters = parsedCli.filters
+    when defined(windows):
+      if filters.filterByUserId:
+        stderr.writeLine("Filtering by numeric user ID is not supported on Windows")
+        quit(1)
+    if filters.filterByCurrentUser:
+      filters.userName = currentUserName()
+      filters.filterByCurrentUser = false
+      filters.filterByUser = true
     var appConfig =
       if parsedCli.monochrome: monochromeConfig() else: defaultConfig()
     if not parsedCli.monochrome:
       readConfigFile(configPath(getAppFilename()), appConfig)
     try:
       if not parsedCli.interactive:
-        runHeadless(sortType, parsedCli.filters)
+        runHeadless(sortType, filters)
       else:
-        runInteractive(sortType, parsedCli.filters, appConfig)
+        runInteractive(sortType, filters, appConfig, parsedCli.maxIterations,
+          parsedCli.maxIterationsSet)
     except OSError as error:
       stderr.writeLine(error.msg)
       quit(1)
