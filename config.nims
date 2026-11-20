@@ -9,3 +9,6 @@ switch("path", "src")
 # The process poller uses a background thread. Nim 2.x enables threads by
 # default, but keep the switch explicit for older toolchains.
 switch("threads", "on")
+
+when defined(macosx):
+  switch("passL", "-lproc")

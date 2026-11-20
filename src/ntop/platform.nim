@@ -1,6 +1,9 @@
 when defined(windows):
   import platform/windows
   export windows
+elif defined(macosx):
+  import platform/macos
+  export macos
 elif defined(linux):
   import platform/linux
   export linux

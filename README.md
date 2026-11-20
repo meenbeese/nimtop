@@ -1,17 +1,13 @@
 # Nimtop
 
-[![Latest Release](https://img.shields.io/github/release/meenbeese/nimtop.svg)](https://github.com/meenbeese/nimtop/releases/latest)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-
-Nimtop is an htop-like process monitor for Windows and Linux, implemented in
-[Nim](https://nim-lang.org) as a native executable with Vi-style commands.
+Nimtop is a cross-platform htop-like process monitor for Windows, macOS, and Linux, implemented in [Nim](https://nim-lang.org) as a fast and native executable. It also optionally supports advanced Vi-style commands.
 
 ## Installation
 
 Once `nimtop` is listed in the Nimble package index, install it with:
 
 ```sh
-$ nimble install nimtop
+nimble install nimtop
 ```
 
 ## Usage
@@ -79,7 +75,8 @@ $ nimble test
 ```
 
 The release task embeds the package version and produces `nimtop.exe` on
-Windows or `nimtop` on Linux.
+Windows or `nimtop` on Linux and macOS. macOS uses the system `libproc`, Mach,
+and POSIX APIs; it requires no additional Nimble dependency.
 
 The original C sources remain as a parity reference; Nimble is the supported
 build system.

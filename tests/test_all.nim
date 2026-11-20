@@ -14,5 +14,8 @@ when defined(windows):
   include test_console
   include test_processes
 
+when defined(macosx):
+  include test_macos
+
 when defined(linux):
   include test_linux

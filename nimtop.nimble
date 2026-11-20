@@ -1,6 +1,6 @@
 version       = "0.1.0"
 author        = "Kuzey Bilgin"
-description   = "htop-like system monitor for Windows and Linux with Vi keybindings"
+description   = "htop-like system monitor for Windows, macOS, and Linux with Vi keybindings"
 license       = "GPL-3.0-only"
 srcDir        = "src"
 bin           = @["nimtop"]
