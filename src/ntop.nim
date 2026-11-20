@@ -22,7 +22,7 @@
 
 import std/[exitprocs, os, strutils, unicode]
 import winim
-import ntop/[console, version]
+import ntop/[console, cli, version]
 
 var gConsole: Console
 
@@ -62,17 +62,7 @@ proc drawRow(con: Console; y: int; text: string; attr: WORD) =
   con.writeAt(0, y, fit(text, con.width), attr)
 
 proc printHelp() =
-  echo versionString()
-  echo ""
-  echo "USAGE"
-  echo "  NTop.exe [OPTIONS]"
-  echo ""
-  echo "OPTIONS"
-  echo "  -h  Display this help info."
-  echo "  -v  Print version."
-  echo ""
-  echo "Phase 0 builds the console layer only; run without options for the"
-  echo "interactive smoke test."
+  echo helpText()
 
 proc runSmoke() =
   gConsole = initConsole(interactive = true)
@@ -130,22 +120,17 @@ proc runSmoke() =
   discard gConsole.readKey()
 
 when isMainModule:
-  var showHelp = false
-  var showVersion = false
-
+  var args: seq[string]
   for i in 1 .. paramCount():
-    case paramStr(i)
-    of "-h", "--help":
-      showHelp = true
-    of "-v", "--version":
-      showVersion = true
-    else:
-      stderr.writeLine("Unknown option: '" & paramStr(i) & "'")
-      quit(1)
+    args.add(paramStr(i))
+  let parsedCli = parseCli(args)
 
-  if showHelp:
+  if parsedCli.kind == ckHelp:
     printHelp()
-  elif showVersion:
+  elif parsedCli.kind == ckVersion:
     echo versionString()
+  elif parsedCli.kind == ckError:
+    stderr.writeLine(parsedCli.message)
+    quit(1)
   else:
     runSmoke()

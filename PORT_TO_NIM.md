@@ -418,12 +418,12 @@ Estimates assume one developer; parallelizable phases are marked.
   The smoke screen draws color swatches, Unicode text, and a process-table
   preview, then waits for a key and restores the original buffer.
 
-### Phase 1 — Pure core (1 day)
+### Phase 1 — Pure core (1 day) — implemented
 
-- `types.nim`, `consts.nim`, `util.nim`: formatters (`formatTimeString`,
+- [x] `types.nim`, `consts.nim`, `util.nim`: formatters (`formatTimeString`,
   `formatMemoryString`), FILETIME math, color masks.
-- `config.nim` + tests (including hex values and the `BGHighlightColor` case).
-- `cli.nim` + help/version + tests.
+- [x] `config.nim` + tests (including hex values and the `BGHighlightColor` case).
+- [x] `cli.nim` + help/version + tests.
 - **Exit criteria:** unit tests pass; `NTop.exe -h`, `-v`, bad option behave like C.
 
 ### Phase 2 — Process acquisition (1.5 days)
