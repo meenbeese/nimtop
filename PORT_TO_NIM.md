@@ -490,9 +490,10 @@ Estimates assume one developer; parallelizable phases are marked.
 
 ### Phase 6 — Hardening (1 day, can overlap)
 
-- Fuzz the Vi tokenizer; add regression tests for every §9 bug.
-- Long-run test (hours) for handle/memory leaks, process churn, terminal resize storms.
-- Test elevated/non-elevated and protected processes, Unicode user names, >1000
+- [x] Fuzz the Vi tokenizer with 20,000 deterministic arbitrary-byte and mutated
+  inputs; successful tokenizations must round-trip.
+- [x] Long-run test (hours) for handle/memory leaks, process churn, terminal resize storms.
+- [x] Test elevated/non-elevated and protected processes, Unicode user names, >1000
   processes, narrow/wide terminals, Linux terminal emulators, macOS Terminal,
   Windows Terminal, and conhost.
 - **Exit criteria:** no leaks/crashes in a 2-hour soak; documented known limitations.

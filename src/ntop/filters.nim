@@ -30,7 +30,7 @@ func passesFilters*(process: Process; filters: Filters): bool =
   if not process.passesIdentityFilters(filters):
     return false
   if filters.filterByUser and
-      cmpIgnoreCase(process.userName, filters.userName) != 0:
+      unicode.toLower(process.userName) != unicode.toLower(filters.userName):
     return false
   if filters.filterByUserId and
       (not process.userIdValid or process.userId != filters.userId):

@@ -16,6 +16,14 @@ suite "process sorting":
     sortProcesses(processes, stProcess, soDescending)
     check processes.mapIt(it.exeName) == @["zeta.exe", "beta.exe", "Alpha.exe"]
 
+  test "sorts Unicode user names case-insensitively":
+    var processes = @[
+      Process(id: 2, userName: "Änne"),
+      Process(id: 1, userName: "änne")
+    ]
+    sortProcesses(processes, stUserName, soAscending)
+    check processes.mapIt(it.id) == @[1'u32, 2'u32]
+
   test "sorts every process column":
     let columns = [
       stId, stUserName, stPriority, stProcessorTime, stUsedMemory,
@@ -38,6 +46,16 @@ suite "process sorting":
         if column == stPriority: @[3'u32, 2'u32, 1'u32]
         else: @[1'u32, 2'u32, 3'u32]
       check processes.mapIt(it.id) == expectedIds
+
+  test "keeps more than one thousand processes when sorting":
+    var processes = newSeqOfCap[Process](1500)
+    for id in 1'u32 .. 1500'u32:
+      processes.add(process(id, 0, "process.exe", uint64(id)))
+
+    sortProcesses(processes, stId, soAscending)
+    check processes.len == 1500
+    check processes[0].id == 1
+    check processes[^1].id == 1500
 
   test "flattens parent child trees and promotes missing parents":
     var processes = @[

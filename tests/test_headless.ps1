@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 $shellPid = [uint32]$PID
 $processName = (Get-Process -Id $shellPid).ProcessName
 
-$output = & $Executable -d -p $shellPid -n $processName -s ID
+$output = & $Executable -d -p $shellPid -N $processName -s ID
 if ($LASTEXITCODE -ne 0) {
   throw "nimtop -d returned exit code $LASTEXITCODE"
 }

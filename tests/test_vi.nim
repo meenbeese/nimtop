@@ -1,4 +1,4 @@
-import std/unittest
+import std/[random, unittest]
 import ntop/vi
 
 suite "Vi command parsing":
@@ -23,6 +23,43 @@ suite "Vi command parsing":
     check not tokenizeCommandLine("sort \"CPU").success
     check not tokenizeCommandLine("sort \"CPU\"junk").success
     check not tokenizeCommandLine("bad! command").success
+
+  test "deterministic fuzz inputs do not crash and successful tokens round-trip":
+    const seeds = [
+      "", "exec \"hello world.exe\"", "kill 12 34", "sort CPU%",
+      "tree", "search \"\"", "bad! command"
+    ]
+    var rng = initRand(0x5eed)
+    for iteration in 0 ..< 20_000:
+      var input: string
+      if iteration mod 2 == 0:
+        input = newString(rand(rng, 0 .. 128))
+        for character in input.mitems:
+          character = char(rand(rng, 0 .. 255))
+      else:
+        input = seeds[rand(rng, 0 .. int(high(seeds)))]
+        for _ in 0 ..< rand(rng, 0 .. 8):
+          case rand(rng, 0 .. 2)
+          of 0:
+            if input.len < 128:
+              input.add(char(rand(rng, 0 .. 255)))
+          of 1:
+            if input.len > 0:
+              input[rand(rng, 0 .. input.high)] = char(rand(rng, 0 .. 255))
+          else:
+            if input.len > 0:
+              input.setLen(rand(rng, 0 .. input.len))
+
+      let parsed = tokenizeCommandLine(input)
+      discard parseViCommand(input)
+      if parsed.success:
+        var encoded = parsed.name
+        for argument in parsed.args:
+          encoded.add(" \"" & argument & "\"")
+        let roundTripped = tokenizeCommandLine(encoded)
+        check roundTripped.success
+        check roundTripped.name == parsed.name
+        check roundTripped.args == parsed.args
 
   test "known commands and slash search alias are parsed":
     let command = parseViCommand(":sort CPU%")

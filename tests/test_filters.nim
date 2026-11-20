@@ -29,6 +29,11 @@ suite "process filters":
     check not passesFilters(process, Filters(
       filterByUser: true, userName: "someone-else"))
 
+  test "user filters handle Unicode names":
+    let unicodeProcess = Process(id: 7, userName: "Müller")
+    check passesFilters(unicodeProcess, Filters(
+      filterByUser: true, userName: "mÜLLER"))
+
   test "user ID filters require a valid process user ID":
     let root = Process(id: 1, userId: 0, userIdValid: true)
     check passesFilters(root, Filters(filterByUserId: true, userId: 0))

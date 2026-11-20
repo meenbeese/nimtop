@@ -1,4 +1,4 @@
-import std/[algorithm, strutils, tables]
+import std/[algorithm, strutils, tables, unicode]
 import types
 
 func compareBySortType(a, b: Process; sortType: SortType): int =
@@ -6,7 +6,7 @@ func compareBySortType(a, b: Process; sortType: SortType): int =
   of stId:
     cmp(a.id, b.id)
   of stUserName:
-    cmpIgnoreCase(a.userName, b.userName)
+    cmp(unicode.toLower(a.userName), unicode.toLower(b.userName))
   of stPriority:
     cmp(a.basePriority, b.basePriority)
   of stProcessorTime:
