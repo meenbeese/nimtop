@@ -1,7 +1,4 @@
-name: NTop Nim CI
-
-# Phase 0 CI: build the Nim port on Windows and run its test suite.
-# The C build remains in ci.yml/pr.yml until the port reaches parity.
+name: Nim CI
 
 on:
   push:
