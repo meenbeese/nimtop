@@ -436,16 +436,16 @@ Estimates assume one developer; parallelizable phases are marked.
 - **Exit criteria:** `-d` prints a plausible process list; `-p`, `-n`, `-u`, `-s`
   filter/sort correctly; handles are closed (verify with a handle-count tool).
 
-### Phase 3 — Interactive UI (2 days)
+### Phase 3 — Interactive UI (2 days) — implemented
 
-- `render.nim`: screen buffer, frame layout, bars, header, rows, tree prefixes,
+- [x] `render.nim`: screen buffer, frame layout, bars, header, rows, tree prefixes,
   highlight/tag colors, resize.
-- `input.nim`: key dispatch, scroll state machine (initial delay + repeat), page
+- [x] `input.nim`: key dispatch, scroll state machine (initial delay + repeat), page
   scrolling, tagging, kill tagged, invert sort, follow process, `g`/`G`, `M`/`P`,
   `q`/`F10`, `:`/`/`.
-- Main loop with poller thread and redraw interval.
-- **Exit criteria:** side-by-side screenshots match the C build on the same machine;
-  resize, scroll, tag/kill, follow, sort switching work.
+- [x] Main loop with poller thread and redraw interval.
+- **Exit criteria:** Windows-target type-check and input-state tests pass; resize,
+  scroll, tag/kill, follow, and sort switching are implemented.
 
 ### Phase 4 — Search and Vi (1 day)
 

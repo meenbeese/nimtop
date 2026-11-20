@@ -15,15 +15,23 @@
 
 ## NTop — Nim port.
 ##
-## Phase 2 entry point: non-interactive process acquisition is implemented;
-## interactive mode still uses the Phase 0 console bootstrap screen.
+## NTop entry point and interactive application loop.
 
-import std/[exitprocs, os, strutils, unicode]
+import std/[exitprocs, locks, os, strutils]
 import winim
-import ntop/[console, cli, processes, processformat, sorting, sysinfo, types,
-  version]
+import ntop/[cli, config, console, input, processes, processformat, render,
+  sorting, sysinfo, types, version]
 
 var gConsole: Console
+
+type
+  PollerContext = object
+    lock: Lock
+    stopped: bool
+    generation: uint64
+    snapshot: ProcessSnapshot
+    error: string
+    filters: Filters
 
 proc restoreConsole() {.noconv.} =
   gConsole.restore()
@@ -34,34 +42,28 @@ proc consoleCtrlHandler(ctrlType: DWORD): WINBOOL {.stdcall.} =
   ExitProcess(0)
   return TRUE
 
-func center(text: string; width: int): string =
-  let padding = max(0, (width - text.runeLen) div 2)
-  spaces(padding) & text
-
-func truncateRunes(text: string; width: int): string =
-  if width <= 0:
-    return ""
-  var count = 0
-  for rune in text.runes:
-    if count >= width:
-      break
-    result.add($rune)
-    inc count
-
-func fit(text: string; width: int): string =
-  let length = text.runeLen
-  if length >= width:
-    truncateRunes(text, width)
-  else:
-    text & spaces(width - length)
-
-proc drawRow(con: Console; y: int; text: string; attr: WORD) =
-  if y < 0 or y >= con.height:
-    return
-  con.writeAt(0, y, fit(text, con.width), attr)
-
 proc printHelp() =
   echo helpText()
+
+proc pollerMain(context: ptr PollerContext) {.thread.} =
+  while true:
+    var stopped: bool
+    withLock context.lock:
+      stopped = context.stopped
+    if stopped:
+      break
+
+    try:
+      let snapshot = acquireProcessList(1000, context.filters)
+      withLock context.lock:
+        context.snapshot = snapshot
+        context.error.setLen(0)
+        inc context.generation
+    except OSError as error:
+      withLock context.lock:
+        context.error = error.msg
+        inc context.generation
+      sleep(1000)
 
 proc runHeadless(sortType: SortType; filters: Filters) =
   discard initSystemInfo()
@@ -73,7 +75,27 @@ proc runHeadless(sortType: SortType; filters: Filters) =
     stdout.write(formatProcessRow(process, sortType == stTree))
   stdout.write("\n")
 
-proc runSmoke() =
+proc killTaggedProcesses(state: var UiState) =
+  var failures: seq[string]
+  for pid in state.tagged:
+    let processHandle = OpenProcess(DWORD(PROCESS_TERMINATE), WINBOOL(0),
+      DWORD(pid))
+    if processHandle == 0 or processHandle == INVALID_HANDLE_VALUE:
+      failures.add($pid)
+      continue
+    if TerminateProcess(processHandle, DWORD(9)) == 0:
+      failures.add($pid)
+    discard CloseHandle(processHandle)
+
+  state.tagged.setLen(0)
+  if failures.len > 0:
+    state.message = "Could not terminate process IDs: " & failures.join(", ")
+    state.messageError = true
+  else:
+    state.message = "Tagged processes terminated"
+    state.messageError = false
+
+proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
   gConsole = initConsole(interactive = true)
   addExitProc(restoreConsole)
   discard SetConsoleCtrlHandler(consoleCtrlHandler, WINBOOL(1))
@@ -81,52 +103,94 @@ proc runSmoke() =
     gConsole.restore()
 
   discard gConsole.refreshSize()
-  let width = max(gConsole.width, 1)
-  let height = max(gConsole.height, 1)
+  gConsole.setTitle("NTop " & NTopVersion)
+  gConsole.hideCursor()
+  let visibleCount = max(0, gConsole.height - 8)
 
-  gConsole.setTitle("NTop " & NTopVersion & " — Nim bootstrap")
-  gConsole.clear(AttrDefault)
+  var host = initSystemInfo()
+  var state = initUiState(sortType, soDescending)
+  state.setProcesses(acquireProcessList(50, filters), visibleCount)
 
-  drawRow(gConsole, 0,
-    center(" NTop " & versionString() & " — Phase 0 console bootstrap ", width),
-    AttrMenu)
-  drawRow(gConsole, 1, "", AttrDefault)
+  var poller = PollerContext(filters: filters)
+  initLock(poller.lock)
+  var worker: Thread[ptr PollerContext]
+  createThread(worker, pollerMain, addr poller)
+  defer:
+    withLock poller.lock:
+      poller.stopped = true
+    joinThread(worker)
+    deinitLock(poller.lock)
 
-  drawRow(gConsole, 2, "  Console layer", AttrHeader)
-  drawRow(gConsole, 3, "    Screen buffer : alternative buffer created and activated", AttrDefault)
-  drawRow(gConsole, 4, "    Terminal size : " & $width & " x " & $height, AttrDefault)
-  drawRow(gConsole, 5,
-    "    Unicode       : Ünïcödé ✓ 日本語 — written via WriteConsoleW", AttrDefault)
-  drawRow(gConsole, 6, "", AttrDefault)
+  var screen = initScreen(gConsole.width, gConsole.height, AttrDefault)
+  var generation = 0'u64
+  var lastSystemPoll = uint64(GetTickCount64())
+  var lastCaretToggle = lastSystemPoll
+  var lastPollError = ""
+  let systemPollInterval = max(1'u64, config.redrawInterval)
+  var dirty = true
+  var quitRequested = false
+  gConsole.flushInput()
 
-  gConsole.writeAt(2, 7, "  Colors: ", AttrDefault)
-  var x = 12
-  const swatches = [
-    (" NORMAL ", AttrDefault),
-    (" HIGHLIGHT ", AttrHighlight),
-    (" HEADER ", AttrHeader),
-    (" ERROR ", AttrError),
-  ]
-  for (text, attr) in swatches:
-    gConsole.writeAt(x, 7, text, attr)
-    x += text.runeLen
+  while not quitRequested:
+    if gConsole.refreshSize():
+      state.ensureUiVisible(max(0, gConsole.height - 8))
+      screen = initScreen(gConsole.width, gConsole.height,
+        WORD(config.fgColor or config.bgColor))
+      dirty = true
 
-  drawRow(gConsole, 9, "  Process table preview", AttrHeader)
-  drawRow(gConsole, 10,
-    "      ID  USER       PRI  CPU%          MEM  THRD       DISK         TIME  PROCESS",
-    AttrHeader)
-  drawRow(gConsole, 11,
-    "    1234  kuz          8  01.2%     12.3 MB     4     0.0 MB/s  00:00:01:23  explorer.exe",
-    AttrDefault)
-  drawRow(gConsole, 12,
-    "    1235  kuz          8  00.4%      4.1 MB     2     0.0 MB/s  00:00:00:41  `- child.exe",
-    AttrDefault)
+    var key: Key
+    if gConsole.tryReadKey(key, DWORD(50)):
+      if key.keyDown:
+        case state.handleKey(key, max(0, gConsole.height - 8),
+            uint64(GetTickCount64()))
+        of iaQuit:
+          quitRequested = true
+        of iaKillTagged:
+          state.killTaggedProcesses()
+        of iaNone:
+          discard
+        dirty = true
+      else:
+        discard state.handleKey(key, max(0, gConsole.height - 8),
+          uint64(GetTickCount64()))
 
-  drawRow(gConsole, height - 2, "", AttrHighlight)
-  gConsole.writeCentered(height - 2,
-    " Press any key to restore the original console buffer ", AttrHighlight)
+    var updatedSnapshot: ProcessSnapshot
+    var pollError: string
+    var hasUpdate = false
+    withLock poller.lock:
+      if poller.generation != generation:
+        generation = poller.generation
+        updatedSnapshot = poller.snapshot
+        pollError = poller.error
+        hasUpdate = true
+    if hasUpdate:
+      if pollError.len > 0:
+        state.message = pollError
+        state.messageError = true
+        lastPollError = pollError
+      else:
+        state.setProcesses(updatedSnapshot,
+          max(0, gConsole.height - 8))
+        if lastPollError.len > 0 and state.message == lastPollError:
+          state.message.setLen(0)
+          state.messageError = false
+        lastPollError.setLen(0)
+      dirty = true
 
-  discard gConsole.readKey()
+    let now = uint64(GetTickCount64())
+    if now - lastSystemPoll >= systemPollInterval:
+      host.pollSystemInfo()
+      lastSystemPoll = now
+      dirty = true
+    if state.inputMode != imNormal and now - lastCaretToggle >= 500:
+      state.caretVisible = not state.caretVisible
+      lastCaretToggle = now
+      dirty = true
+
+    if dirty:
+      screen.render(state, host, config)
+      screen.flush(gConsole)
+      dirty = false
 
 when isMainModule:
   var args: seq[string]
@@ -141,13 +205,17 @@ when isMainModule:
   elif parsedCli.kind == ckError:
     stderr.writeLine(parsedCli.message)
     quit(1)
-  elif not parsedCli.interactive:
-    let sortType =
-      if parsedCli.sortColumnSet: parsedCli.sortColumn else: stId
+  else:
+    let sortType = if parsedCli.sortColumnSet: parsedCli.sortColumn else: stId
+    var appConfig =
+      if parsedCli.monochrome: monochromeConfig() else: defaultConfig()
+    if not parsedCli.monochrome:
+      readConfigFile(configPath(getAppFilename()), appConfig)
     try:
-      runHeadless(sortType, parsedCli.filters)
+      if not parsedCli.interactive:
+        runHeadless(sortType, parsedCli.filters)
+      else:
+        runInteractive(sortType, parsedCli.filters, appConfig)
     except OSError as error:
       stderr.writeLine(error.msg)
       quit(1)
-  else:
-    runSmoke()

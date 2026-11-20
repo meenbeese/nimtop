@@ -93,10 +93,10 @@ $ nimble build -d:release
 $ nimble test
 ```
 
-The Nim port includes Windows process/system information acquisition and
-non-interactive process listing with `-d`; the interactive screen is still a
-console bootstrap smoke test. Use `-p`, `-n`, `-u`, and `-s` with `-d` to filter
-or sort the output. See [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for the full plan.
+The Nim port includes Windows process/system information acquisition and an
+interactive process monitor. Use `-p`, `-n`, `-u`, and `-s` to filter or sort
+the process list; `-d` prints it and exits. See
+[`PORT_TO_NIM.md`](PORT_TO_NIM.md) for the full plan.
 
 ## TODO
 

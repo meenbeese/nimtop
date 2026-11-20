@@ -6,6 +6,7 @@ include test_cli
 include test_sorting
 include test_filters
 include test_processformat
+include test_input
 
 when defined(windows):
   include test_console

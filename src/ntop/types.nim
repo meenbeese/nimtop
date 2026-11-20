@@ -1,4 +1,13 @@
+import std/unicode
+
 type
+  Key* = object
+    vk*: int
+    ch*: Rune
+    ctrl*: bool
+    keyDown*: bool
+    repeatCount*: int
+
   SortType* = enum
     stId, stUserName, stPriority, stProcessorTime, stUsedMemory,
     stThreadCount, stDiskUsage, stUpTime, stProcess, stTree

@@ -29,6 +29,8 @@ when not defined(windows):
 
 import std/unicode
 import winim
+import types
+export types.Key
 
 const
   # Console attribute bits. Kept as WORD constants so they compose with the
@@ -57,12 +59,6 @@ const
   GenericReadWrite = DWORD(GENERIC_READ) or DWORD(GENERIC_WRITE)
 
 type
-  Key* = object
-    ## A single key-down console event.
-    vk*: int
-    ch*: Rune
-    ctrl*: bool
-
   Console* = object
     handle*: HANDLE          ## Active output handle.
     previousHandle*: HANDLE  ## Original stdout, restored on shutdown.
@@ -187,6 +183,16 @@ proc clear*(c: Console; attr: WORD = AttrDefault) =
   discard FillConsoleOutputAttribute(c.handle, attr, cells, origin, addr written)
   c.setCursorPos(0, 0)
 
+proc clearRow*(c: Console; y: int; attr: WORD = AttrDefault) =
+  if not c.isConsole() or y < 0 or y >= c.height or c.width <= 0:
+    return
+  var written: DWORD
+  let origin = COORD(X: 0, Y: SHORT(y))
+  discard FillConsoleOutputCharacterW(c.handle, WCHAR(ord(' ')),
+    DWORD(c.width), origin, addr written)
+  discard FillConsoleOutputAttribute(c.handle, attr, DWORD(c.width), origin,
+    addr written)
+
 proc write*(c: Console; text: string) =
   ## Writes UTF-8 text without changing the current attributes.
   if text.len == 0:
@@ -223,6 +229,8 @@ proc writeCentered*(c: Console; y: int; text: string; attr: WORD) =
 proc flushInput*(c: Console) =
   discard FlushConsoleInputBuffer(c.inputHandle)
 
+proc tryReadKey*(c: Console; key: var Key; timeoutMs: DWORD): bool
+
 proc readKey*(c: Console): Key =
   ## Blocks until the next key-down event and returns it.
   ##
@@ -231,19 +239,42 @@ proc readKey*(c: Console): Key =
   if not c.isConsole():
     raise newException(IOError, "readKey requires an interactive console")
 
-  var record: INPUT_RECORD
-  var count: DWORD
   while true:
+    if c.tryReadKey(result, DWORD(INFINITE)):
+      if result.keyDown:
+        return
+
+proc tryReadKey*(c: Console; key: var Key; timeoutMs: DWORD): bool =
+  ## Reads at most one key event, returning false when no event arrives.
+  if not c.isConsole():
+    raise newException(IOError, "tryReadKey requires an interactive console")
+
+  let waitResult = WaitForSingleObject(c.inputHandle, timeoutMs)
+  if waitResult == WAIT_TIMEOUT:
+    return false
+  if waitResult == WAIT_FAILED:
+    raise newException(OSError,
+      "WaitForSingleObject(console input) failed (Win32 error " &
+      $GetLastError() & ")")
+
+  while true:
+    var record: INPUT_RECORD
+    var count: DWORD
     winCheck(ReadConsoleInputW(c.inputHandle, addr record, 1, addr count),
       "ReadConsoleInputW")
-    if record.EventType == WORD(KEY_EVENT) and
-        record.Event.KeyEvent.bKeyDown != 0:
-      let key = record.Event.KeyEvent
-      result.vk = int(key.wVirtualKeyCode)
-      result.ch = Rune(key.uChar.UnicodeChar)
-      result.ctrl = (key.dwControlKeyState and
+    if record.EventType == WORD(KEY_EVENT):
+      let keyEvent = record.Event.KeyEvent
+      key.vk = int(keyEvent.wVirtualKeyCode)
+      key.ch = Rune(keyEvent.uChar.UnicodeChar)
+      key.ctrl = (keyEvent.dwControlKeyState and
         DWORD(LEFT_CTRL_PRESSED or RIGHT_CTRL_PRESSED)) != 0
-      return
+      key.keyDown = keyEvent.bKeyDown != 0
+      key.repeatCount = max(1, int(keyEvent.wRepeatCount))
+      return true
+
+    let remainingEvents = WaitForSingleObject(c.inputHandle, DWORD(0))
+    if remainingEvents == WAIT_TIMEOUT:
+      return false
 
 proc initConsole*(interactive = true): Console =
   ## Creates (or adopts) the console screen buffer used by NTop.
