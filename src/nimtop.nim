@@ -70,10 +70,7 @@ proc runHeadless(sortType: SortType; filters: Filters) =
   let snapshot = acquireProcessList(1000, filters)
   var processes = snapshot.processes
   sortProcesses(processes, sortType)
-  stdout.write(ProcessTableHeader)
-  for process in processes:
-    stdout.write(formatProcessRow(process, sortType == stTree))
-  stdout.write("\n")
+  stdout.write(formatProcessTable(processes, sortType == stTree))
 
 proc killTaggedProcesses(state: var UiState) =
   var failures: seq[string]

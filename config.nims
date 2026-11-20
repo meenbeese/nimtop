@@ -1,8 +1,8 @@
 # Nim configuration for NTop.
 #
-# The package layout and dependencies live in ntop.nimble. This file only adds
+# The package layout and dependencies live in nimtop.nimble. This file only adds
 # source-path and build settings that should also apply when compiling
-# directly with `nim c src/ntop.nim`.
+# directly with `nim c src/nimtop.nim`.
 
 switch("path", "src")
 

@@ -7,22 +7,10 @@ Nimtop is an htop-like process monitor for Windows, implemented in [Nim](https:/
 
 ## Installation
 
-### Chocolatey
+Once `nimtop` is listed in the Nimble package index, install it with:
 
 ```sh
-$ choco install nimtop.portable
-```
-
-### Scoop
-
-```sh
-$ scoop install nimtop
-```
-
-### Winget
-
-```sh
-$ winget install meenbeese.nimtop
+$ nimble install nimtop
 ```
 
 ## Usage
@@ -34,9 +22,10 @@ $ winget install meenbeese.nimtop
 | `-C` | Use monochrome color scheme. |
 | `-h` | Display help info. |
 | `-p` PID, PID... | Show only the given PIDs. |
-| `-n` NamePart, NamePart... | Show only processes containing at least one of the name parts. |
+| `-n` NamePart, NamePart... | Show processes whose executable name contains any supplied substring (case-sensitive). |
 | `-s` COLUMN | Sort by this column. |
 | `-u` USERNAME | Only display processes belonging to this user. |
+| `-d` | Print the process table and exit instead of opening the interactive monitor. |
 | `-v` | Print version. |
 
 ### Interactive commands
@@ -76,27 +65,28 @@ Existing `ntop.conf` files are still read as a compatibility fallback.
 
 ## Building
 
-Use CMake or use the build.bat file. Only tested with Visual Studio 2017.
+### Nim
 
-```sh
-$ cmake . # For enabling Unicode support: cmake -DENABLE_UNICODE=ON .
-```
-
-### Nim port (in progress)
-
-The port to Nim lives in [`src/`](src) and is built with Nim 2.x and
+The Nim application lives in [`src/`](src) and is built with Nim 2.x and
 [`winim`](https://github.com/khchen/winim):
 
 ```sh
-$ nimble install -d
-$ nimble build -d:release
+$ nimble install -y --depsOnly
+$ nimble release
 $ nimble test
 ```
 
-The Nim port includes Windows process/system information acquisition, an
-interactive process monitor, process-name search, and Vi commands. Use `-p`,
-`-n`, `-u`, and `-s` to filter or sort the process list; `-d` prints it and exits. See
-[`PORT_TO_NIM.md`](PORT_TO_NIM.md) for the full plan.
+The release task produces a self-contained `nimtop.exe` with the package
+version.
+
+The original C sources remain as a parity reference; Nimble is the supported
+build system.
+
+The Nim build includes process/system information, the interactive monitor,
+process-name search, and Vi commands. The port also fixes issues in the original
+implementation, including sort overflow, tree flattening, invalid PID handling,
+and unsafe input/history buffers. See [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for
+implementation and compatibility details.
 
 ## TODO
 

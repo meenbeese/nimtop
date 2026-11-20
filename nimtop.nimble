@@ -12,4 +12,5 @@ task test, "Run the test suite":
   exec "nim c -r --hints:off --path:src tests/test_all.nim"
 
 task release, "Build the release binary":
-  exec "nim c -d:release --opt:speed --app:console --path:src --out:nimtop.exe src/nimtop.nim"
+  exec "nim c -d:release -d:NTopVersion=" & version &
+    " --opt:speed --app:console --path:src --out:nimtop.exe src/nimtop.nim"

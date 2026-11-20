@@ -19,8 +19,8 @@ The port should:
 3. Split `ntop.c` into focused modules and introduce a **screen-buffer abstraction** so
    rendering can be tested headlessly.
 4. Fix the latent memory/UB bugs listed in §9 while porting, behind a parity test suite.
-5. Ship a single self-contained `nimtop.exe` built by Nimble, with the same packaging
-   (Chocolatey/Scoop/Winget payload) and Windows CI.
+5. Ship a single self-contained `nimtop.exe` built by Nimble, with a Nimble package
+   manifest and Windows CI.
 
 Estimated effort: **7–9 engineering days** for one developer familiar with Nim and Win32,
 plus 1–2 days of manual parity testing on real Windows terminals.
@@ -36,8 +36,8 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 | `vi.h` | 35 | Vi input API |
 | `util.h` | 53 | `TCHAR` helpers, `NORETURN` |
 | `nimtop.conf` | 16 | Colors + redraw interval |
-| `CMakeLists.txt`, `build.bat` | — | Build (MSVC 2017; optional Unicode) |
-| `ntop.nuspec`, `.github/workflows/*` | — | Chocolatey package + Windows CI |
+| `nimtop.nimble`, `config.nims` | — | Nimble package, build, and release configuration |
+| `.github/workflows/*` | — | Windows CI |
 
 ### Runtime architecture (C)
 
@@ -96,7 +96,7 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 | Threads | `std/threads` + `std/locks` (`Lock` → `CRITICAL_SECTION`) |
 | Formatting | `std/strformat`, `std/strutils` |
 | Tests | `std/unittest`; optional `testament` for matrix runs |
-| Build | Nimble (`ntop.nimble`) + `config.nims`; optional CMake wrapper kept for downstream users |
+| Build | Nimble (`nimtop.nimble`) + `config.nims` |
 | CI | GitHub Actions `windows-latest` + `jiro4989/setup-nim-action` |
 | Cross-compile | `nim c --os:windows --cpu:amd64` with mingw-w64 (dev convenience; CI remains native) |
 
@@ -109,7 +109,7 @@ times down.
 ## 5. Proposed module layout
 
 ```
-ntop.nimble
+nimtop.nimble
 config.nims
 src/
   ntop.nim              # entry point, main loop, wiring
@@ -407,8 +407,8 @@ Estimates assume one developer; parallelizable phases are marked.
 
 ### Phase 0 — Bootstrap (0.5 day) — implemented
 
-- [x] Add `ntop.nimble`, `config.nims`, `src/nimtop.nim` skeleton.
-- [x] Declare `winim` in `ntop.nimble`; verified with Nim 2.4.2 + mingw-w64
+- [x] Add `nimtop.nimble`, `config.nims`, `src/nimtop.nim` skeleton.
+- [x] Declare `winim` in `nimtop.nimble`; verified with Nim 2.4.2 + mingw-w64
   (Windows CI uses the native Windows toolchain).
 - [x] Implement `src/ntop/console.nim` (alternative screen buffer, colors,
   cursor, `WriteConsoleW`, resize, key input, idempotent restore) and the
@@ -459,14 +459,16 @@ Estimates assume one developer; parallelizable phases are marked.
 - **Exit criteria:** command/history/error behavior matches the C build; parser tests
   pass.
 
-### Phase 5 — Non-interactive, packaging, parity (1–2 days)
+### Phase 5 — Non-interactive, Nimble package, parity (1–2 days) — implemented
 
-- `-d` output parity (byte-level golden test where practical).
-- CMake wrapper or documented Nimble-only build; keep `build.bat` equivalent.
-- Update `ntop.nuspec`/Scoop/Winget payload paths if the binary name/layout changes.
-- README updates: Nim build instructions, note fixed bugs, `-d`/`-n` docs.
-- **Exit criteria:** release artifact is a single exe; package installs; README builds
-  from a clean Windows VM.
+- [x] `-d` output parity covered by a byte-for-byte table-format golden test.
+- [x] Use Nimble as the supported build system; remove legacy `CMakeLists.txt` and
+  `build.bat`.
+- [x] Maintain a Nimble package manifest for direct Nimble submission; CI builds
+  and tests the release executable.
+- [x] README documents Nim build, fixed bugs, and `-d`/`-n`.
+- **Exit criteria:** CI verifies the single-executable release artifact and
+  manifest tasks; README has clean-Windows build instructions.
 
 ### Phase 6 — Hardening (1 day, can overlap)
 
@@ -494,6 +496,8 @@ Estimates assume one developer; parallelizable phases are marked.
 
 - `nimtop.exe -d` against a fixture machine: header present, row count = process count,
   filters reduce rows as expected.
+- Windows CI runs `tests/test_headless.ps1` to exercise `-d` with `-p`, `-n`, and
+  `-s`.
 - `-p` with a known PID; `-n` with a substring; `-u` with the current user; `-s` for
   each column (exit 0) and an invalid column (exit 1).
 - Console smoke test: start interactive, send keys via a small helper (or manual),
@@ -512,21 +516,25 @@ Estimates assume one developer; parallelizable phases are marked.
 
 ## 15. Build, CI, and release
 
-`ntop.nimble`:
+`nimtop.nimble`:
 
 ```nim
-version       = "0.4.0"
-author        = "Gian Sass"
+version       = "0.1.0"
+author        = "Kuzey Bilgin"
 description   = "htop-like system monitor for Windows with Vi keybindings"
 license       = "GPL-3.0-only"
 srcDir        = "src"
 bin           = @["nimtop"]
 
-requires "nim >= 2.0.0"
+requires "nim >= 2.2.0"
 requires "winim >= 3.9.0"
 
+task test, "Run the test suite":
+  exec "nim c -r --hints:off --path:src tests/test_all.nim"
+
 task release, "Build the release binary":
-  exec "nim c -d:release --opt:speed --app:console --out:nimtop.exe src/nimtop.nim"
+  exec "nim c -d:release -d:NTopVersion=" & version &
+    " --opt:speed --app:console --path:src --out:nimtop.exe src/nimtop.nim"
 ```
 
 `config.nims`:
@@ -541,11 +549,11 @@ CI (`windows-latest`):
 
 ```yaml
 - uses: jiro4989/setup-nim-action@v2
-  with: { nim-version: "2.2.x" }
-- run: nimble build -d:release
+  with: { nim-version: "2.4.2" }
+- run: nimble release
 - run: nimble test
 - uses: actions/upload-artifact@v4
-  with: { name: nimtop.exe, path: nimtop.exe }
+  with: { name: nimtop-windows, path: artifact/nimtop.exe }
 ```
 
 Cross-compile from macOS/Linux for quick checks:
@@ -557,9 +565,8 @@ nim c -d:release --os:windows --cpu:amd64 --cc:gcc \
 
 (Requires `mingw-w64`; not a substitute for Windows CI.)
 
-Release: use the artifact name `nimtop.exe` and directory layout; update
-Chocolatey/Scoop/Winget manifests to the renamed package as needed. Update
-`ntop.nuspec` only if the version or file paths change.
+Release: CI uploads the `nimtop.exe` artifact. The `nimtop.nimble` manifest is
+maintained for direct submission to the Nimble package index.
 
 ## 16. Risks and mitigations
 
@@ -581,8 +588,8 @@ Chocolatey/Scoop/Winget manifests to the renamed package as needed. Update
    Recommendation: wide-only; it removes `TCHAR` entirely and fixes §9 #3.
 2. **Bug parity**: fix all §9 bugs by default (recommended) or preserve exact behavior
    behind `-d:ntopStrictParity`?
-3. **Build system**: Nimble-only, or keep CMake as a thin wrapper for existing
-   contributors? Recommendation: Nimble primary, CMake optional.
+3. **Build system**: Nimble-only; the legacy CMake and `build.bat` entry points
+   are removed.
 4. **`:exec` semantics**: keep `CreateProcess` in the same console (current behavior,
    can fail for console apps) or use `CREATE_NEW_CONSOLE`? Recommendation: new console,
    document it.

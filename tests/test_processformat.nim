@@ -18,3 +18,17 @@ suite "headless process formatting":
   test "tree rows include depth prefixes":
     let process = Process(id: 5, treeDepth: 3, exeName: "child.exe")
     check formatProcessRow(process, treeMode = true).endsWith("|  `- child.exe")
+
+  test "headless table output matches the C byte layout":
+    let process = Process(
+      id: 42, userName: "bob", basePriority: 8,
+      percentProcessorTime: 1.2, usedMemory: 12_300_000,
+      threadCount: 5, upTime: 1000, diskUsage: 1_234_567,
+      exeName: "worker.exe"
+    )
+    let expected = ProcessTableHeader &
+      "\n     42  " & "      bob" & "  " & "  8" & "  " & "01.2%" &
+      "  " & "    12.3 MB" & "  " & "   5" & "  " &
+      " 1.3 MB/s" & "  " & "00:00:00:01" & "  worker.exe\n"
+    check formatProcessTable([process]) == expected
+    check formatProcessTable([]) == ProcessTableHeader & "\n"

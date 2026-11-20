@@ -29,3 +29,10 @@ func formatProcessRow*(process: Process; treeMode = false): string =
     formatDiskRate(process.diskUsage) & "  " &
     formatTimeString(process.upTime) & "  " &
     treePrefix & process.exeName
+
+func formatProcessTable*(processes: openArray[Process];
+                         treeMode = false): string =
+  result = ProcessTableHeader
+  for process in processes:
+    result.add(formatProcessRow(process, treeMode))
+  result.add('\n')
