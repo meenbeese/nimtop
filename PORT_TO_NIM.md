@@ -85,7 +85,7 @@ The original source layout before the Nim port was:
 
 **Non-goals (initial port)**
 
-- New features from the README TODO list (filtering UI, remaining htop options).
+- Remaining features from the README TODO list (additional htop options).
 - Changing the config format or command syntax.
 - Rewriting the UI toolkit (no ncurses/illwill); use native Win32 and POSIX console APIs.
 
@@ -461,10 +461,10 @@ Estimates assume one developer; parallelizable phases are marked.
   highlight/tag colors, resize.
 - [x] `input.nim`: key dispatch, scroll state machine (initial delay + repeat), page
   scrolling, tagging, kill tagged, invert sort, follow process, `g`/`G`, `M`/`P`,
-  `q`/`F10`, `:`/`/`.
+  `q`/`F10`, `F4` incremental process filtering, `:`/`/`.
 - [x] Main loop with poller thread and redraw interval.
 - **Exit criteria:** Windows, Linux, and macOS checks and input-state tests pass;
-  resize, scroll, tag/kill, follow, and sort switching are implemented.
+  resize, scroll, tag/kill, follow, filtering, and sort switching are implemented.
 
 ### Phase 4 — Search and Vi (1 day) — implemented
 

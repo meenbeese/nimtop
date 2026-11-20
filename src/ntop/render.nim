@@ -201,7 +201,11 @@ proc render*(screen: var Screen; state: UiState; host: HostInfo;
 
   let statusY = screen.height - 2
   screen.fill(0, statusY, screen.width, normal)
-  if state.inputMode != imNormal:
+  if state.inputMode == imFilter:
+    let caret = if state.caretVisible: "_" else: " "
+    screen.put(0, statusY, "Filter: " & state.inputText & caret,
+      AttrForegroundWhite)
+  elif state.inputMode != imNormal:
     let caret = if state.caretVisible: "_" else: " "
     screen.put(0, statusY, state.inputText & caret, AttrForegroundWhite)
   elif state.message.len > 0:
@@ -209,7 +213,10 @@ proc render*(screen: var Screen; state: UiState; host: HostInfo;
       if state.messageError: config.errorColor
       else: AttrForegroundWhite
     screen.put(0, statusY, state.message, attribute)
+  elif state.filterText.len > 0:
+    screen.put(0, statusY, "Filter: " & state.filterText & "  F4:Edit",
+      AttrForegroundWhite)
   else:
     screen.put(0, statusY,
-      "Up/Down:Move  Space:Tag  K:Kill tagged  I:Invert sort  q:Quit",
+      "Up/Down:Move  Space:Tag  F4:Filter  K:Kill tagged  I:Invert sort  q:Quit",
       AttrForegroundWhite)

@@ -80,6 +80,44 @@ suite "interactive input state":
     state.moveSearch(sdPrevious, 3)
     check state.processes[state.selectedIndex].id == 2
 
+  test "F4 filters process names as text is entered and retains on Enter":
+    var state = initUiState(sortOrder = soAscending)
+    state.setProcesses(sampleProcesses(), 3)
+    discard state.handleKey(key(0x73), 3, 100)
+    check state.inputMode == imFilter
+    for character in "TWO":
+      discard state.handleKey(key(0, Rune(ord(character))), 3, 200)
+    check state.processes.len == 1
+    check state.processes[0].id == 2
+    check state.filterText.len == 0
+    check state.handleKey(key(0x0D), 3, 300) == iaNone
+    check state.inputMode == imNormal
+    check state.filterText == "TWO"
+
+    state.setProcesses(sampleProcesses(), 3)
+    check state.processes.len == 1
+    check state.processes[0].id == 2
+
+  test "Escape restores the committed filter and Backspace can clear it":
+    var state = initUiState(sortOrder = soAscending)
+    state.filterText = "two"
+    state.setProcesses(sampleProcesses(), 3)
+    discard state.handleKey(key(0x73), 3, 100)
+    discard state.handleKey(key(0, Rune(ord('x'))), 3, 200)
+    check state.processes.len == 0
+    discard state.handleKey(key(0x1B), 3, 300)
+    check state.filterText == "two"
+    check state.processes.len == 1
+    check state.processes[0].id == 2
+
+    discard state.handleKey(key(0x73), 3, 400)
+    for _ in 0 ..< state.inputText.len:
+      discard state.handleKey(key(0x08), 3, 500)
+    check state.inputMode == imFilter
+    check state.processes.len == 3
+    discard state.handleKey(key(0x0D), 3, 600)
+    check state.filterText.len == 0
+
   test "command input submits the line for Vi dispatch":
     var state = initUiState()
     discard state.handleKey(key(0, Rune(ord(':'))), 3, 100)

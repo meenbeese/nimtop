@@ -2,6 +2,8 @@
 
 Nimtop is a cross-platform htop-like process monitor for Windows, macOS, and Linux, implemented in [Nim](https://nim-lang.org) as a fast and native executable. It also optionally supports advanced Vi-style commands.
 
+![Nimtop](image.png)
+
 ## Installation
 
 Once `nimtop` is listed in the Nimble package index, install it with:
@@ -38,8 +40,13 @@ nimble install nimtop
 | <kbd>K</kbd> | Kill all tagged processes. |
 | <kbd>I</kbd> | Invert the sort order. |
 | <kbd>F</kbd> | Follow process: if the sort order causes the currently selected process to move in the list, make the selection bar follow it. Moving the cursor manually automatically disables this feature. |
+| <kbd>F4</kbd> | Filter process names by a case-insensitive substring as you type. |
 | <kbd>/</kbd> | Search process names; lowercase patterns match case-insensitively. |
 | <kbd>n</kbd>, <kbd>N</kbd> | Next and previous search matches, wrapping at the ends. |
+
+Press <kbd>Enter</kbd> to keep an interactive filter, or <kbd>Escape</kbd> to
+discard edits and restore the previous filter. Backspace removes characters;
+press <kbd>F4</kbd> again or Enter to finish editing.
 
 ### Vi commands
 
@@ -89,6 +96,6 @@ implementation and compatibility details.
 * ~~Figure out buggy resizing.~~
 * ~~View process tree.~~
 * ~~Searching.~~
-* Interactive filtering.
+* ~~Interactive filtering.~~
 * All of htop's command line options.
 * At least the most important interactive commands (e.g. ~~following processes~~).

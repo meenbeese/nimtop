@@ -36,6 +36,7 @@ const
   VkUp = 0x26
   VkRight = 0x27
   VkDown = 0x28
+  VkF4 = 0x73
   VkF10 = 0x79
 
 type
@@ -255,6 +256,7 @@ proc tryReadKey*(c: Console; key: var ntopTypes.Key; timeoutMs: int): bool =
     of "[1;5D": key.setKey(VkLeft, true)
     of "[5~": key.setKey(VkPrior)
     of "[6~": key.setKey(VkNext)
+    of "[14~", "[[S": key.setKey(VkF4)
     of "[21~": key.setKey(VkF10)
     else: key.setKey(VkEscape)
     return true

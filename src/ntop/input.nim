@@ -1,4 +1,4 @@
-import std/unicode
+import std/[strutils, unicode]
 import search, sorting, types, vi
 
 const
@@ -12,17 +12,19 @@ const
   VkUp = 0x26
   VkRight = 0x27
   VkDown = 0x28
+  VkF4 = 0x73
   VkF10 = 0x79
 
 type
   InputMode* = enum
-    imNormal, imCommand, imSearch
+    imNormal, imCommand, imSearch, imFilter
 
   InputAction* = enum
     iaNone, iaQuit, iaKillTagged, iaSubmitCommand, iaSubmitSearch,
     iaSearchNext, iaSearchPrevious
 
   UiState* = object
+    allProcesses*: seq[Process]
     processes*: seq[Process]
     tagged*: seq[uint32]
     selectedIndex*: int
@@ -35,6 +37,7 @@ type
     cpuUsage*: float64
     inputMode*: InputMode
     inputText*: string
+    filterText*: string
     submittedText*: string
     history*: ViHistory
     search*: SearchState
@@ -44,6 +47,7 @@ type
     scrollKey: int
     scrollStartedAt: uint64
     lastScrollAt: uint64
+    allRunningCount: uint32
 
 func initUiState*(sortType = stId; sortOrder = soDescending): UiState =
   UiState(sortType: sortType, sortOrder: sortOrder, caretVisible: true)
@@ -84,14 +88,23 @@ proc setSort*(state: var UiState; sortType: SortType; visibleCount: int) =
         break
   state.ensureVisible(visibleCount)
 
-proc setProcesses*(state: var UiState; snapshot: ProcessSnapshot;
-                   visibleCount: int) =
+proc applyFilter(state: var UiState; pattern: string; visibleCount: int) =
   let selectedPid = if state.followProcess: state.followPid
                     else: state.currentProcessId()
-  state.processes = snapshot.processes
-  state.runningCount = snapshot.runningCount
-  state.cpuUsage = snapshot.cpuUsage
+  let lowerPattern = unicode.toLower(pattern)
+  state.processes.setLen(0)
+  for process in state.allProcesses:
+    if lowerPattern.len == 0 or
+        unicode.toLower(process.exeName).contains(lowerPattern):
+      state.processes.add(process)
+
   sortProcesses(state.processes, state.sortType, state.sortOrder)
+  state.runningCount = state.allRunningCount
+  if lowerPattern.len > 0:
+    state.runningCount = 0
+    for process in state.processes:
+      if process.percentProcessorTime >= 0.01:
+        inc state.runningCount
 
   var foundSelected = selectedPid == 0
   if selectedPid != 0:
@@ -100,9 +113,19 @@ proc setProcesses*(state: var UiState; snapshot: ProcessSnapshot;
         state.selectedIndex = i
         foundSelected = true
         break
-  if state.followProcess and not foundSelected:
+  if state.followProcess and not foundSelected and
+      state.inputMode != imFilter:
     state.followProcess = false
   state.ensureVisible(visibleCount)
+
+proc setProcesses*(state: var UiState; snapshot: ProcessSnapshot;
+                   visibleCount: int) =
+  state.allProcesses = snapshot.processes
+  state.allRunningCount = snapshot.runningCount
+  state.cpuUsage = snapshot.cpuUsage
+  let pattern = if state.inputMode == imFilter: state.inputText
+                else: state.filterText
+  state.applyFilter(pattern, visibleCount)
 
 proc toggleTag(state: var UiState; pid: uint32) =
   for i, taggedPid in state.tagged:
@@ -155,7 +178,31 @@ proc removeLastRune(text: var string) =
     dec index
   text.setLen(index)
 
-proc handleInputLine(state: var UiState; key: Key): InputAction =
+proc handleFilterLine(state: var UiState; key: Key;
+                      visibleCount: int): InputAction =
+  case key.vk
+  of VkEscape:
+    let pattern = state.filterText
+    state.endInput()
+    state.applyFilter(pattern, visibleCount)
+  of VkReturn, VkF4:
+    let pattern = state.inputText
+    state.filterText = pattern
+    state.endInput()
+    state.applyFilter(pattern, visibleCount)
+  of VkBack:
+    state.inputText.removeLastRune()
+    state.applyFilter(state.inputText, visibleCount)
+  else:
+    if not key.ctrl and key.ch != Rune(0) and
+        state.inputText.runeLen < 1024:
+      state.inputText.add($key.ch)
+      state.applyFilter(state.inputText, visibleCount)
+
+proc handleInputLine(state: var UiState; key: Key;
+                     visibleCount: int): InputAction =
+  if state.inputMode == imFilter:
+    return state.handleFilterLine(key, visibleCount)
   if key.vk == VkEscape:
     state.endInput()
   elif key.vk == VkUp:
@@ -165,8 +212,8 @@ proc handleInputLine(state: var UiState; key: Key): InputAction =
   elif key.vk == VkReturn:
     state.submittedText = state.inputText
     state.history.recordInput(state.inputText)
-    result =
-      if state.inputMode == imSearch: iaSubmitSearch else: iaSubmitCommand
+    result = if state.inputMode == imSearch: iaSubmitSearch
+             else: iaSubmitCommand
     state.endInput()
   elif key.vk == VkBack:
     state.inputText.removeLastRune()
@@ -210,7 +257,14 @@ proc handleKey*(state: var UiState; key: Key; visibleCount: int;
     return iaNone
 
   if state.inputMode != imNormal:
-    return state.handleInputLine(key)
+    return state.handleInputLine(key, visibleCount)
+
+  if key.vk == VkF4:
+    state.inputMode = imFilter
+    state.inputText = state.filterText
+    state.message.setLen(0)
+    state.messageError = false
+    return iaNone
 
   if key.vk in [VkUp, VkDown, VkPrior, VkNext]:
     state.scroll(key.vk, nowMs, visibleCount)
