@@ -15,14 +15,13 @@
 
 ## NTop — Nim port.
 ##
-## Phase 0 bootstrap entry point: verifies the Win32 console wrapper by drawing
-## a colored frame in an alternative screen buffer, waiting for a key, and
-## restoring the original buffer. The process-list, rendering, and Vi layers
-## replace this smoke screen in later phases.
+## Phase 2 entry point: non-interactive process acquisition is implemented;
+## interactive mode still uses the Phase 0 console bootstrap screen.
 
 import std/[exitprocs, os, strutils, unicode]
 import winim
-import ntop/[console, cli, version]
+import ntop/[console, cli, processes, processformat, sorting, sysinfo, types,
+  version]
 
 var gConsole: Console
 
@@ -63,6 +62,16 @@ proc drawRow(con: Console; y: int; text: string; attr: WORD) =
 
 proc printHelp() =
   echo helpText()
+
+proc runHeadless(sortType: SortType; filters: Filters) =
+  discard initSystemInfo()
+  let snapshot = acquireProcessList(1000, filters)
+  var processes = snapshot.processes
+  sortProcesses(processes, sortType)
+  stdout.write(ProcessTableHeader)
+  for process in processes:
+    stdout.write(formatProcessRow(process, sortType == stTree))
+  stdout.write("\n")
 
 proc runSmoke() =
   gConsole = initConsole(interactive = true)
@@ -132,5 +141,13 @@ when isMainModule:
   elif parsedCli.kind == ckError:
     stderr.writeLine(parsedCli.message)
     quit(1)
+  elif not parsedCli.interactive:
+    let sortType =
+      if parsedCli.sortColumnSet: parsedCli.sortColumn else: stId
+    try:
+      runHeadless(sortType, parsedCli.filters)
+    except OSError as error:
+      stderr.writeLine(error.msg)
+      quit(1)
   else:
     runSmoke()

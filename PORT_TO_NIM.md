@@ -426,13 +426,13 @@ Estimates assume one developer; parallelizable phases are marked.
 - [x] `cli.nim` + help/version + tests.
 - **Exit criteria:** unit tests pass; `NTop.exe -h`, `-v`, bad option behave like C.
 
-### Phase 2 — Process acquisition (1.5 days)
+### Phase 2 — Process acquisition (1.5 days) — implemented
 
-- `sysinfo.nim`: CPU name/frequency/cores, computer name, memory, uptime.
-- `processes.nim`: Toolhelp snapshot, memory, user via token/SID, CPU% via
+- [x] `sysinfo.nim`: CPU name/frequency/cores, computer name, memory, uptime.
+- [x] `processes.nim`: Toolhelp snapshot, memory, user via token/SID, CPU% via
   `GetSystemTimes`/`GetProcessTimes` deltas, I/O deltas, uptime, filters.
-- `sorting.nim`: comparators for every column, asc/desc, O(n) tree build/flatten.
-- Tests with synthetic process data for sorting/tree; live smoke test for enrichment.
+- [x] `sorting.nim`: comparators for every column, asc/desc, O(n) tree build/flatten.
+- [x] Tests with synthetic process data for sorting/tree; live smoke test for enrichment.
 - **Exit criteria:** `-d` prints a plausible process list; `-p`, `-n`, `-u`, `-s`
   filter/sort correctly; handles are closed (verify with a handle-count tool).
 

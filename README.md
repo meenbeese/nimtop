@@ -93,15 +93,16 @@ $ nimble build -d:release
 $ nimble test
 ```
 
-Phase 0 provides the Win32 console wrapper and a smoke test. Running `NTop.exe`
-without options draws a colored bootstrap screen and waits for a key; `-h` and
-`-v` work as before. See [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for the full plan.
+The Nim port includes Windows process/system information acquisition and
+non-interactive process listing with `-d`; the interactive screen is still a
+console bootstrap smoke test. Use `-p`, `-n`, `-u`, and `-s` with `-d` to filter
+or sort the output. See [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for the full plan.
 
 ## TODO
 
 * ~~Figure out buggy resizing.~~
 * ~~View process tree.~~
 * ~~Searching.~~
-* Filtering.
+* Interactive filtering.
 * All of htop's command line options.
 * At least the most important interactive commands (e.g. ~~following processes~~).

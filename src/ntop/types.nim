@@ -6,6 +6,37 @@ type
   SortOrder* = enum
     soAscending, soDescending
 
+  Process* = object
+    id*: uint32
+    userName*: string
+    basePriority*: int32
+    percentProcessorTime*: float64
+    usedMemory*: uint64
+    threadCount*: uint32
+    upTime*: uint64
+    exeName*: string
+    parentPid*: uint32
+    diskOpsPrev*: uint64
+    diskOps*: uint64
+    diskUsage*: uint64
+    treeDepth*: int
+
+  HostInfo* = object
+    cpuName*: string
+    cpuFrequencyMHz*: float64
+    cpuCoreCount*: uint32
+    computerName*: string
+    totalMemoryBytes*: uint64
+    availableMemoryBytes*: uint64
+    totalPageFileBytes*: uint64
+    availablePageFileBytes*: uint64
+    upTimeMs*: uint64
+
+  ProcessSnapshot* = object
+    processes*: seq[Process]
+    runningCount*: uint32
+    cpuUsage*: float64
+
   Config* = object
     fgColor*: uint16
     bgColor*: uint16
