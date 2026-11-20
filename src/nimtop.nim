@@ -18,9 +18,8 @@
 ## nimtop entry point and interactive application loop.
 
 import std/[exitprocs, locks, os, strutils]
-import winim
-import ntop/[cli, config, console, input, processes, processformat, render,
-  search, sorting, sysinfo, types, version, vi]
+import ntop/[cli, config, console, input, platform, processformat, render,
+  search, sorting, types, version, vi]
 
 var gConsole: Console
 
@@ -35,12 +34,6 @@ type
 
 proc restoreConsole() {.noconv.} =
   gConsole.restore()
-
-proc consoleCtrlHandler(ctrlType: DWORD): WINBOOL {.stdcall.} =
-  ## Restore the original buffer before the process goes away.
-  gConsole.restore()
-  ExitProcess(0)
-  return TRUE
 
 proc printHelp() =
   echo helpText()
@@ -75,14 +68,8 @@ proc runHeadless(sortType: SortType; filters: Filters) =
 proc killTaggedProcesses(state: var UiState) =
   var failures: seq[string]
   for pid in state.tagged:
-    let processHandle = OpenProcess(DWORD(PROCESS_TERMINATE), WINBOOL(0),
-      DWORD(pid))
-    if processHandle == 0 or processHandle == INVALID_HANDLE_VALUE:
+    if not terminateProcess(pid).success:
       failures.add($pid)
-      continue
-    if TerminateProcess(processHandle, DWORD(9)) == 0:
-      failures.add($pid)
-    discard CloseHandle(processHandle)
 
   state.tagged.setLen(0)
   if failures.len > 0:
@@ -105,18 +92,10 @@ proc executeViCommand(state: var UiState; command: ViCommand;
         kind: vmError))
       return
 
-    var commandLine = newWideCString(command.args.join(" "))
-    var startupInfo: STARTUPINFOW
-    startupInfo.cb = DWORD(sizeof(startupInfo))
-    var processInfo: PROCESS_INFORMATION
-    if CreateProcessW(nil, cast[LPWSTR](addr commandLine[0]), nil, nil,
-        WINBOOL(0), DWORD(0), nil, nil, addr startupInfo, addr processInfo) == 0:
-      state.showViMessage(ViMessage(
-        text: "Failed to create process (Win32 error " & $GetLastError() & ")",
-        kind: vmError))
+    let error = startCommand(command.args.join(" "))
+    if error.len > 0:
+      state.showViMessage(ViMessage(text: error, kind: vmError))
       return
-    discard CloseHandle(processInfo.hThread)
-    discard CloseHandle(processInfo.hProcess)
 
   of vcKill:
     if command.args.len == 0:
@@ -136,16 +115,14 @@ proc executeViCommand(state: var UiState; command: ViCommand;
         failures.add("Not a valid pid: " & pidText)
         continue
 
-      let processHandle = OpenProcess(DWORD(PROCESS_TERMINATE), WINBOOL(0),
-        DWORD(pid))
-      if processHandle == 0 or processHandle == INVALID_HANDLE_VALUE:
+      let termination = terminateProcess(uint32(pid))
+      if not termination.opened:
         failures.add("Could not open process: " & $pid &
-          " (Win32 error " & $GetLastError() & ")")
+          " (Win32 error " & $termination.errorCode & ")")
         continue
-      if TerminateProcess(processHandle, DWORD(9)) == 0:
+      if not termination.success:
         failures.add("Failed to kill process: " & $pid &
-          " (Win32 error " & $GetLastError() & ")")
-      discard CloseHandle(processHandle)
+          " (Win32 error " & $termination.errorCode & ")")
 
     if failures.len > 0:
       state.showViMessage(ViMessage(text: failures.join("; "), kind: vmError))
@@ -191,7 +168,7 @@ proc executeViInput(state: var UiState; inputLine: string;
 proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
   gConsole = initConsole(interactive = true)
   addExitProc(restoreConsole)
-  discard SetConsoleCtrlHandler(consoleCtrlHandler, WINBOOL(1))
+  registerConsoleControlHandler(restoreConsole)
   defer:
     gConsole.restore()
 
@@ -216,7 +193,7 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
 
   var screen = initScreen(gConsole.width, gConsole.height, AttrDefault)
   var generation = 0'u64
-  var lastSystemPoll = uint64(GetTickCount64())
+  var lastSystemPoll = monotonicTimeMs()
   var lastCaretToggle = lastSystemPoll
   var lastPollError = ""
   let systemPollInterval = max(1'u64, config.redrawInterval)
@@ -228,14 +205,14 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
     if gConsole.refreshSize():
       state.ensureUiVisible(max(0, gConsole.height - 8))
       screen = initScreen(gConsole.width, gConsole.height,
-        WORD(config.fgColor or config.bgColor))
+        uint16(config.fgColor or config.bgColor))
       dirty = true
 
     var key: Key
-    if gConsole.tryReadKey(key, DWORD(50)):
+    if gConsole.tryReadKey(key, 50):
       if key.keyDown:
         case state.handleKey(key, max(0, gConsole.height - 8),
-            uint64(GetTickCount64()))
+            monotonicTimeMs())
         of iaQuit:
           quitRequested = true
         of iaKillTagged:
@@ -255,7 +232,7 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
         dirty = true
       else:
         discard state.handleKey(key, max(0, gConsole.height - 8),
-          uint64(GetTickCount64()))
+          monotonicTimeMs())
 
     var updatedSnapshot: ProcessSnapshot
     var pollError: string
@@ -280,7 +257,7 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
         lastPollError.setLen(0)
       dirty = true
 
-    let now = uint64(GetTickCount64())
+    let now = monotonicTimeMs()
     if now - lastSystemPoll >= systemPollInterval:
       host.pollSystemInfo()
       lastSystemPoll = now

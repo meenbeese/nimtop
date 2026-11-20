@@ -80,8 +80,8 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 
 **Non-goals (initial port)**
 
-- Cross-platform support (Linux/macOS process backends). Keep the design open, but do
-  not implement it now.
+- Linux/macOS backends. Win32 calls are isolated in `ntop/platform/windows.nim`;
+  adding other backends remains future work.
 - New features from the README TODO list (filtering UI, remaining htop options).
 - Changing the config format or command syntax.
 - Rewriting the UI toolkit (no ncurses/illwill); stay on the Win32 console API.
@@ -92,6 +92,7 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 |:--|:--|
 | Language | Nim **2.2.x** (ARC/ORC default, threads on by default) |
 | Win32 bindings | [`winim`](https://github.com/khchen/winim) (thin, header-faithful); hand-written `importc` for any gaps |
+| Platform boundary | `ntop/platform.nim` selects a backend; Win32 implementation is in `ntop/platform/windows.nim` |
 | Terminal | Direct Win32 console API (`kernel32`), same as C |
 | Threads | `std/threads` + `std/locks` (`Lock` → `CRITICAL_SECTION`) |
 | Formatting | `std/strformat`, `std/strutils` |
@@ -113,13 +114,14 @@ nimtop.nimble
 config.nims
 src/
   ntop.nim              # entry point, main loop, wiring
+  ntop/platform.nim     # platform backend selector
+  ntop/platform/
+    windows.nim         # Win32 console, process, host-info, and process-control APIs
   ntop/types.nim        # Process, Config, SortType, enums, App state
   ntop/consts.nim       # layout, color masks, version, limits
   ntop/util.nim         # die, time/memory formatting, FILETIME math, conversions
-  ntop/console.nim      # Win32 console wrapper: buffers, colors, cursor, WriteConsoleW
+  ntop/console.nim      # shared console-facing API
   ntop/config.nim       # nimtop.conf discovery + parsing
-  ntop/sysinfo.nim      # CPU name/freq/cores, memory, uptime, computer name
-  ntop/processes.nim    # snapshot + enrichment + filters
   ntop/sorting.nim      # comparators, tree construction/flattening
   ntop/search.nim       # pattern state, next/previous
   ntop/render.nim       # frame layout, screen buffer, draw helpers
@@ -136,8 +138,9 @@ tests/
   test_headless.nim     # runs the exe with -d and checks output
 ```
 
-`ntop.c` maps roughly 1:1 to `ntop.nim` + `render` + `input` + `processes` + `sorting`
-+ `sysinfo`; `vi.c` → `vi.nim`; `util.c` → `util.nim`; headers → `types`/`consts`.
+`ntop.c` maps roughly 1:1 to `ntop.nim` + `render` + `input` + `sorting`, with
+process acquisition and system information provided by `platform/windows.nim`.
+`vi.c` → `vi.nim`; `util.c` → `util.nim`; headers → `types`/`consts`.
 
 ## 6. Data model
 

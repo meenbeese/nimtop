@@ -1,7 +1,7 @@
 when defined(windows):
   import std/unittest
   import winim
-  import ntop/[processes, sysinfo]
+  import ntop/platform
 
   suite "live Windows process acquisition":
     test "snapshot includes the current process with enriched data":

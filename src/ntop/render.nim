@@ -1,27 +1,23 @@
-when not defined(windows):
-  {.error: "nimtop's interactive renderer is Windows-only.".}
-
 import std/[strutils, unicode]
-import winim
 import console, input, processformat, types, util
 
 type
   Cell = object
     character: Rune
-    attribute: WORD
+    attribute: uint16
 
   Screen* = object
     width*: int
     height*: int
     cells: seq[Cell]
 
-func combined(foreground, background: uint16): WORD {.inline.} =
-  WORD(foreground or background)
+func combined(foreground, background: uint16): uint16 {.inline.} =
+  foreground or background
 
 func index(screen: Screen; x, y: int): int {.inline.} =
   y * screen.width + x
 
-proc fill*(screen: var Screen; x, y, width: int; attribute: WORD;
+proc fill*(screen: var Screen; x, y, width: int; attribute: uint16;
            character = Rune(ord(' '))) =
   if y < 0 or y >= screen.height or width <= 0:
     return
@@ -34,19 +30,19 @@ proc fill*(screen: var Screen; x, y, width: int; attribute: WORD;
       Cell(character: character, attribute: attribute)
 
 proc fillRect*(screen: var Screen; x, y, width, height: int;
-               attribute: WORD; character = Rune(ord(' '))) =
+               attribute: uint16; character = Rune(ord(' '))) =
   if height <= 0:
     return
   for row in max(0, y) ..< min(screen.height, y + height):
     screen.fill(x, row, width, attribute, character)
 
-proc initScreen*(width, height: int; attribute: WORD): Screen =
+proc initScreen*(width, height: int; attribute: uint16): Screen =
   result.width = max(width, 1)
   result.height = max(height, 1)
   result.cells = newSeq[Cell](result.width * result.height)
   result.fillRect(0, 0, result.width, result.height, attribute)
 
-proc put*(screen: var Screen; x, y: int; text: string; attribute: WORD) =
+proc put*(screen: var Screen; x, y: int; text: string; attribute: uint16) =
   if y < 0 or y >= screen.height:
     return
   var column = x
@@ -59,7 +55,7 @@ proc put*(screen: var Screen; x, y: int; text: string; attribute: WORD) =
     inc column
 
 proc flush*(screen: Screen; con: Console) =
-  # Writing the bottom-right cell can scroll; clear the last row via Win32 instead.
+  # Writing the bottom-right cell can scroll; clear the last row via the backend.
   for y in 0 ..< max(0, screen.height - 1):
     var x = 0
     while x < screen.width:
@@ -83,16 +79,16 @@ proc drawPercentageBar(screen: var Screen; y: int; name: string;
                        percentage: float64; barColor: uint16;
                        config: Config): int =
   let normal = combined(config.fgColor, config.bgColor)
-  let accent = WORD(config.fgHighlightColor)
+  let accent = config.fgHighlightColor
   screen.put(0, y, "  " & name, accent)
   result = 2 + name.len
   screen.put(result, y, "[", normal)
   inc result
   let bars = int(float64(25) * max(0.0, min(percentage, 1.0)))
-  screen.fill(result, y, bars, WORD(barColor), Rune(ord('|')))
+  screen.fill(result, y, bars, barColor, Rune(ord('|')))
   screen.fill(result + bars, y, 25 - bars, normal)
   result += 25
-  screen.put(result, y, barValue(percentage), WORD(config.bgColor))
+  screen.put(result, y, barValue(percentage), config.bgColor)
   result += 5
   screen.put(result, y, "]", normal)
   result += 1
@@ -116,7 +112,7 @@ proc drawHeader(screen: var Screen; state: UiState; config: Config) =
       if columnWidth == 0: max(0, screen.width - x)
       else: columnWidth
     let attribute =
-      if state.sortType == sortType: WORD(config.bgHighlightColor)
+      if state.sortType == sortType: config.bgHighlightColor
       else: normal
     screen.put(x, 5, align(name, width), attribute)
     x += width + 2
@@ -129,22 +125,22 @@ proc isTagged(state: UiState; pid: uint32): bool =
       return true
 
 proc processAttribute(state: UiState; processIndex: int;
-                      config: Config): WORD =
+                      config: Config): uint16 =
   let tagged = state.isTagged(state.processes[processIndex].id)
   if processIndex == state.selectedIndex:
     if tagged:
-      WORD(config.bgColor or config.bgHighlightColor)
+      config.bgColor or config.bgHighlightColor
     else:
-      WORD(config.bgHighlightColor)
+      config.bgHighlightColor
   elif tagged:
-    WORD(config.bgColor)
+    config.bgColor
   else:
     combined(config.fgColor, config.bgColor)
 
 proc render*(screen: var Screen; state: UiState; host: HostInfo;
              config: Config) =
   let normal = combined(config.fgColor, config.bgColor)
-  let accent = WORD(config.fgHighlightColor)
+  let accent = config.fgHighlightColor
   screen.fillRect(0, 0, screen.width, screen.height, normal)
 
   let menu = "nimtop on " & host.computerName
@@ -210,7 +206,7 @@ proc render*(screen: var Screen; state: UiState; host: HostInfo;
     screen.put(0, statusY, state.inputText & caret, AttrForegroundWhite)
   elif state.message.len > 0:
     let attribute =
-      if state.messageError: WORD(config.errorColor)
+      if state.messageError: config.errorColor
       else: AttrForegroundWhite
     screen.put(0, statusY, state.message, attribute)
   else:
