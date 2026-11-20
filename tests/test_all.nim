@@ -13,3 +13,6 @@ include test_vi
 when defined(windows):
   include test_console
   include test_processes
+
+when defined(linux):
+  include test_linux

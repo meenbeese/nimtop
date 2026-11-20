@@ -19,8 +19,8 @@ The port should:
 3. Split `ntop.c` into focused modules and introduce a **screen-buffer abstraction** so
    rendering can be tested headlessly.
 4. Fix the latent memory/UB bugs listed in §9 while porting, behind a parity test suite.
-5. Ship a single self-contained `nimtop.exe` built by Nimble, with a Nimble package
-   manifest and Windows CI.
+5. Ship self-contained Windows and Linux executables built by Nimble, with a Nimble
+   package manifest and native CI for both platforms.
 
 Estimated effort: **7–9 engineering days** for one developer familiar with Nim and Win32,
 plus 1–2 days of manual parity testing on real Windows terminals.
@@ -37,7 +37,7 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 | `util.h` | 53 | `TCHAR` helpers, `NORETURN` |
 | `nimtop.conf` | 16 | Colors + redraw interval |
 | `nimtop.nimble`, `config.nims` | — | Nimble package, build, and release configuration |
-| `.github/workflows/*` | — | Windows CI |
+| `.github/workflows/*` | — | Windows and Linux CI |
 
 ### Runtime architecture (C)
 
@@ -72,16 +72,16 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 
 - Byte-for-byte-compatible CLI/config/command behavior (modulo fixed bugs).
 - Identical visual layout and color semantics on Windows 10/11 (conhost and Windows
-  Terminal), including resize handling.
-- Single `nimtop.exe`, no DLLs beyond system libraries, no external runtime.
-- Windows x64 primary; x86 build optional.
+  Terminal) and ANSI-compatible Linux terminals, including resize handling.
+- Self-contained platform executables, no external runtime.
+- Windows x64 and Linux x86_64.
 - Unit tests for pure logic; a headless mode test for integration.
 - Keep GPL-3.0 headers and attribution.
 
 **Non-goals (initial port)**
 
-- Linux/macOS backends. Win32 calls are isolated in `ntop/platform/windows.nim`;
-  adding other backends remains future work.
+- macOS backend. Windows and Linux calls are isolated in their platform backends;
+  additional platforms remain future work.
 - New features from the README TODO list (filtering UI, remaining htop options).
 - Changing the config format or command syntax.
 - Rewriting the UI toolkit (no ncurses/illwill); stay on the Win32 console API.
@@ -91,17 +91,19 @@ plus 1–2 days of manual parity testing on real Windows terminals.
 | Concern | Choice |
 |:--|:--|
 | Language | Nim **2.2.x** (ARC/ORC default, threads on by default) |
-| Win32 bindings | [`winim`](https://github.com/khchen/winim) (thin, header-faithful); hand-written `importc` for any gaps |
-| Platform boundary | `ntop/platform.nim` selects a backend; Win32 implementation is in `ntop/platform/windows.nim` |
-| Terminal | Direct Win32 console API (`kernel32`), same as C |
+| Windows backend | [`winim`](https://github.com/khchen/winim) (thin, header-faithful); hand-written `importc` for any gaps |
+| Linux backend | `/proc` process/system data and POSIX terminal/process APIs |
+| Platform boundary | `ntop/platform.nim` selects `windows.nim` or `linux.nim` |
+| Terminal | Win32 console API on Windows; termios, poll, and ANSI sequences on Linux |
 | Threads | `std/threads` + `std/locks` (`Lock` → `CRITICAL_SECTION`) |
 | Formatting | `std/strformat`, `std/strutils` |
 | Tests | `std/unittest`; optional `testament` for matrix runs |
 | Build | Nimble (`nimtop.nimble`) + `config.nims` |
-| CI | GitHub Actions `windows-latest` + `jiro4989/setup-nim-action` |
-| Cross-compile | `nim c --os:windows --cpu:amd64` with mingw-w64 (dev convenience; CI remains native) |
+| CI | GitHub Actions `windows-latest` and `ubuntu-latest` + `jiro4989/setup-nim-action` |
+| Cross-compile | Native CI builds are authoritative; Windows can be cross-compiled with mingw-w64 |
 
-Rationale for `winim`: it exposes the exact Win32 types/constants used here
+Rationale for `winim`: it exposes the exact Win32 types/constants used by the
+Windows backend
 (`HANDLE`, `DWORD`, `FILETIME`, `INPUT_RECORD`, `PROCESSENTRY32`, `TOKEN_USER`,
 `MEMORYSTATUSEX`, …), so the port is mostly mechanical and auditable against MSDN.
 Avoid `winim/lean` only if a needed header is missing; otherwise lean keeps compile
@@ -113,10 +115,11 @@ times down.
 nimtop.nimble
 config.nims
 src/
-  ntop.nim              # entry point, main loop, wiring
+  nimtop.nim            # entry point, main loop, wiring
   ntop/platform.nim     # platform backend selector
   ntop/platform/
     windows.nim         # Win32 console, process, host-info, and process-control APIs
+    linux.nim           # procfs acquisition, POSIX terminal, and process-control APIs
   ntop/types.nim        # Process, Config, SortType, enums, App state
   ntop/consts.nim       # layout, color masks, version, limits
   ntop/util.nim         # die, time/memory formatting, FILETIME math, conversions
@@ -135,11 +138,12 @@ tests/
   test_vi.nim
   test_search.nim
   test_cli.nim
-  test_headless.nim     # runs the exe with -d and checks output
+  test_headless.nim     # headless output checks
+  test_linux.nim        # Linux procfs/backend checks
 ```
 
-`ntop.c` maps roughly 1:1 to `ntop.nim` + `render` + `input` + `sorting`, with
-process acquisition and system information provided by `platform/windows.nim`.
+`ntop.c` maps roughly 1:1 to `nimtop.nim` + `render` + `input` + `sorting`, with
+process acquisition and system information provided by platform backends.
 `vi.c` → `vi.nim`; `util.c` → `util.nim`; headers → `types`/`consts`.
 
 ## 6. Data model
@@ -411,14 +415,14 @@ Estimates assume one developer; parallelizable phases are marked.
 ### Phase 0 — Bootstrap (0.5 day) — implemented
 
 - [x] Add `nimtop.nimble`, `config.nims`, `src/nimtop.nim` skeleton.
-- [x] Declare `winim` in `nimtop.nimble`; verified with Nim 2.4.2 + mingw-w64
-  (Windows CI uses the native Windows toolchain).
+- [x] Declare `winim` as a Windows-only Nimble dependency; Windows CI uses the
+  native Windows toolchain.
 - [x] Implement `src/ntop/console.nim` (alternative screen buffer, colors,
-  cursor, `WriteConsoleW`, resize, key input, idempotent restore) and the
-  bootstrap smoke screen in `src/nimtop.nim`.
-- [x] Add `nimble test` (`tests/test_all.nim`) and Windows CI
-  (`.github/workflows/nim.yml`) that builds and uploads `nimtop.exe`.
-- **Exit criteria:** CI produces `nimtop.exe`; console smoke test runs on Windows.
+  cursor, resize, key input, idempotent restore) and the bootstrap smoke screen.
+- [x] Add `nimble test` (`tests/test_all.nim`) and native Windows/Linux CI
+  (`.github/workflows/nim.yml`).
+- **Exit criteria:** CI builds both platform executables; the Windows console
+  smoke test runs.
   The smoke screen draws color swatches, Unicode text, and a process-table
   preview, then waits for a key and restores the original buffer.
 
@@ -428,17 +432,19 @@ Estimates assume one developer; parallelizable phases are marked.
   `formatMemoryString`), FILETIME math, color masks.
 - [x] `config.nim` + tests (including hex values and the `BGHighlightColor` case).
 - [x] `cli.nim` + help/version + tests.
-- **Exit criteria:** unit tests pass; `nimtop.exe -h`, `-v`, bad option behave like C.
+- **Exit criteria:** unit tests pass; `nimtop -h`, `-v`, and bad-option behavior
+  match on both supported platforms.
 
 ### Phase 2 — Process acquisition (1.5 days) — implemented
 
-- [x] `sysinfo.nim`: CPU name/frequency/cores, computer name, memory, uptime.
-- [x] `processes.nim`: Toolhelp snapshot, memory, user via token/SID, CPU% via
-  `GetSystemTimes`/`GetProcessTimes` deltas, I/O deltas, uptime, filters.
+- [x] Windows backend: Toolhelp snapshot, memory, user via token/SID, CPU%,
+  I/O deltas, uptime, filters, and host information.
+- [x] Linux backend: `/proc` process/system snapshots, memory, user, CPU/I/O
+  deltas, uptime, and host information.
 - [x] `sorting.nim`: comparators for every column, asc/desc, O(n) tree build/flatten.
 - [x] Tests with synthetic process data for sorting/tree; live smoke test for enrichment.
-- **Exit criteria:** `-d` prints a plausible process list; `-p`, `-n`, `-u`, `-s`
-  filter/sort correctly; handles are closed (verify with a handle-count tool).
+- **Exit criteria:** `-d` prints a plausible process list on Windows and Linux;
+  `-p`, `-n`, `-u`, and `-s` filter/sort correctly.
 
 ### Phase 3 — Interactive UI (2 days) — implemented
 
@@ -448,8 +454,8 @@ Estimates assume one developer; parallelizable phases are marked.
   scrolling, tagging, kill tagged, invert sort, follow process, `g`/`G`, `M`/`P`,
   `q`/`F10`, `:`/`/`.
 - [x] Main loop with poller thread and redraw interval.
-- **Exit criteria:** Windows-target type-check and input-state tests pass; resize,
-  scroll, tag/kill, follow, and sort switching are implemented.
+- **Exit criteria:** Windows and Linux target checks and input-state tests pass;
+  resize, scroll, tag/kill, follow, and sort switching are implemented.
 
 ### Phase 4 — Search and Vi (1 day) — implemented
 
@@ -477,8 +483,9 @@ Estimates assume one developer; parallelizable phases are marked.
 
 - Fuzz the Vi tokenizer; add regression tests for every §9 bug.
 - Long-run test (hours) for handle/memory leaks, process churn, terminal resize storms.
-- Test elevated/non-elevated, protected processes, users with Unicode names, >1000
-  processes, narrow/wide terminals, Windows Terminal vs conhost.
+- Test elevated/non-elevated and protected processes, Unicode user names, >1000
+  processes, narrow/wide terminals, Linux terminal emulators, Windows Terminal,
+  and conhost.
 - **Exit criteria:** no leaks/crashes in a 2-hour soak; documented known limitations.
 
 ## 14. Testing strategy
@@ -495,12 +502,12 @@ Estimates assume one developer; parallelizable phases are marked.
 - Search: case rules, wrap-around, no match, empty pattern.
 - CLI: all flags, missing values, unknown flags, help/version text snapshot.
 
-**Integration (Windows CI or local)**
+**Integration (Windows and Linux CI or local)**
 
-- `nimtop.exe -d` against a fixture machine: header present, row count = process count,
+- `nimtop -d` against a fixture machine: header present, row count = process count,
   filters reduce rows as expected.
-- Windows CI runs `tests/test_headless.ps1` to exercise `-d` with `-p`, `-n`, and
-  `-s`.
+- Windows CI runs `tests/test_headless.ps1`; Linux CI runs a filtered `-d` smoke
+  test and Linux-specific procfs tests.
 - `-p` with a known PID; `-n` with a substring; `-u` with the current user; `-s` for
   each column (exit 0) and an invalid column (exit 1).
 - Console smoke test: start interactive, send keys via a small helper (or manual),
@@ -508,7 +515,8 @@ Estimates assume one developer; parallelizable phases are marked.
 
 **Parity harness (manual or scripted)**
 
-- Run C `nimtop.exe -d` and Nim `nimtop.exe -d` on the same machine seconds apart; compare
+- Run the legacy Windows C binary and Nim `nimtop.exe` on the same machine seconds
+  apart; compare
   header and normalized rows (PID set may differ).
 - Screenshot comparison for interactive mode at 80×24, 120×30, 200×50.
 
@@ -524,20 +532,26 @@ Estimates assume one developer; parallelizable phases are marked.
 ```nim
 version       = "0.1.0"
 author        = "Kuzey Bilgin"
-description   = "htop-like system monitor for Windows with Vi keybindings"
+description   = "htop-like system monitor for Windows and Linux with Vi keybindings"
 license       = "GPL-3.0-only"
 srcDir        = "src"
 bin           = @["nimtop"]
 
 requires "nim >= 2.2.0"
-requires "winim >= 3.9.0"
+
+when defined(windows):
+  requires "winim >= 3.9.0"
+  const releaseExecutable = "nimtop.exe"
+else:
+  const releaseExecutable = "nimtop"
 
 task test, "Run the test suite":
   exec "nim c -r --hints:off --path:src tests/test_all.nim"
 
 task release, "Build the release binary":
   exec "nim c -d:release -d:NTopVersion=" & version &
-    " --opt:speed --app:console --path:src --out:nimtop.exe src/nimtop.nim"
+    " --opt:speed --app:console --path:src --out:" & releaseExecutable &
+    " src/nimtop.nim"
 ```
 
 `config.nims`:
@@ -548,15 +562,18 @@ when defined(windows):
   # winim uses dynlib for most calls; link flags cover static imports.
 ```
 
-CI (`windows-latest`):
+CI (`windows-latest` and `ubuntu-latest`):
 
 ```yaml
 - uses: jiro4989/setup-nim-action@v2
   with: { nim-version: "2.4.2" }
 - run: nimble release
 - run: nimble test
+- run: ./nimtop -d -p "$$" # Linux headless process-filter smoke test
 - uses: actions/upload-artifact@v4
   with: { name: nimtop-windows, path: artifact/nimtop.exe }
+- uses: actions/upload-artifact@v4
+  with: { name: nimtop-linux, path: nimtop }
 ```
 
 Cross-compile from macOS/Linux for quick checks:
@@ -568,8 +585,9 @@ nim c -d:release --os:windows --cpu:amd64 --cc:gcc \
 
 (Requires `mingw-w64`; not a substitute for Windows CI.)
 
-Release: CI uploads the `nimtop.exe` artifact. The `nimtop.nimble` manifest is
-maintained for direct submission to the Nimble package index.
+Release: CI uploads `nimtop.exe` on Windows and `nimtop` on Linux. The
+`nimtop.nimble` manifest is maintained for direct submission to the Nimble
+package index.
 
 ## 16. Risks and mitigations
 
@@ -577,13 +595,15 @@ maintained for direct submission to the Nimble package index.
 |:--|:--|:--|
 | `winim` missing a struct/constant | Medium | add `importc`/`type` locally; winim is header-generated, gaps are rare |
 | Win32 console quirks (`WriteConsoleW`, resize, wrap modes) | High | isolate in `console.nim`; test on conhost + Windows Terminal early (Phase 0/3) |
+| Linux procfs permissions or format differences | Medium | tolerate per-process access failures; test snapshots on Ubuntu CI |
+| Terminal escape-sequence differences | Medium | keep ANSI input/output in the Linux backend; validate common xterm-compatible terminals |
 | Unicode/`TCHAR` drift | Medium | UTF-8 internally, `WideCString` at boundaries; Unicode-only build (drop ANSI mode) |
 | Thread/GC misuse | High | snapshot swap under lock; no shared `ref`; `--mm:orc`; soak test |
 | Behavior drift in Vi parser/CLI | Medium | table-driven tests derived from the C code; side-by-side runs |
 | Process access failures (protected/system processes) | Medium | keep C fallbacks (`SYSTEM` user, zero memory), never crash |
-| Windows-only CI cost/flakiness | Low | build + unit tests only; manual UI matrix |
+| Platform CI cost/flakiness | Low | native Windows and Linux builds + tests; manual interactive UI matrix |
 | Cross-compile differences | Low | native Windows CI is the source of truth |
-| Scope creep (cross-platform, new features) | Medium | non-goals in §3; keep backend boundary clean but unimplemented |
+| Scope creep (additional platforms, new features) | Medium | non-goals in §3; keep backend boundary clean |
 
 ## 17. Open questions
 
@@ -656,5 +676,5 @@ Use this as the working checklist; tick items as they land.
 - [ ] Tagging, kill-tagged, follow-process, invert-sort work.
 - [ ] Config file keys all apply (including `BGHighlightColor`).
 - [ ] No handle leaks over a 2-hour soak; no crashes on protected processes.
-- [ ] `nimble test` green on Windows CI; release artifact builds and packages.
+- [ ] `nimble test` passes on Windows and Linux CI; both release artifacts build.
 - [ ] README documents the Nim build and the intentional behavior changes.

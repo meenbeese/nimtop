@@ -3,5 +3,5 @@ import types
 
 export platform except acquireProcessList, initSystemInfo, pollSystemInfo,
   terminateProcess, startCommand, monotonicTimeMs,
-  registerConsoleControlHandler, ConsoleShutdownCallback
+  registerConsoleControlHandler, shutdownRequested, ConsoleShutdownCallback
 export types.Key

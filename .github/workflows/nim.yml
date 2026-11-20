@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
 
     steps:
@@ -42,4 +42,46 @@ jobs:
         with:
           name: nimtop-windows
           path: artifact/nimtop.exe
+          if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "2.4.2"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: nimble install -y --depsOnly
+
+      - name: Build
+        run: nimble release
+
+      - name: Test
+        run: nimble test
+
+      - name: Headless CLI smoke test
+        run: |
+          test -x ./nimtop
+          pid=$$
+          output="$(./nimtop -d -p "$pid")"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -Eq "^[[:space:]]*$pid[[:space:]]"
+
+      - name: Package Linux executable
+        run: |
+          mkdir -p artifact
+          tar -czf artifact/nimtop-linux.tar.gz nimtop
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nimtop-linux
+          path: artifact/nimtop-linux.tar.gz
           if-no-files-found: error

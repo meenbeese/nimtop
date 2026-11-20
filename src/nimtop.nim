@@ -92,7 +92,7 @@ proc executeViCommand(state: var UiState; command: ViCommand;
         kind: vmError))
       return
 
-    let error = startCommand(command.args.join(" "))
+    let error = startCommand(command.args.join(" "), gConsole)
     if error.len > 0:
       state.showViMessage(ViMessage(text: error, kind: vmError))
       return
@@ -118,11 +118,11 @@ proc executeViCommand(state: var UiState; command: ViCommand;
       let termination = terminateProcess(uint32(pid))
       if not termination.opened:
         failures.add("Could not open process: " & $pid &
-          " (Win32 error " & $termination.errorCode & ")")
+          " (" & termination.error & ")")
         continue
       if not termination.success:
         failures.add("Failed to kill process: " & $pid &
-          " (Win32 error " & $termination.errorCode & ")")
+          " (" & termination.error & ")")
 
     if failures.len > 0:
       state.showViMessage(ViMessage(text: failures.join("; "), kind: vmError))
@@ -202,6 +202,8 @@ proc runInteractive(sortType: SortType; filters: Filters; config: Config) =
   gConsole.flushInput()
 
   while not quitRequested:
+    if shutdownRequested():
+      break
     if gConsole.refreshSize():
       state.ensureUiVisible(max(0, gConsole.height - 8))
       screen = initScreen(gConsole.width, gConsole.height,

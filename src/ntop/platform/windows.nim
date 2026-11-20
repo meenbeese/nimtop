@@ -482,17 +482,18 @@ proc initSystemInfo*(): HostInfo =
   result.pollSystemInfo()
 
 proc terminateProcess*(pid: uint32): tuple[success, opened: bool,
-                                           errorCode: uint32] =
+                                           error: string] =
   let processHandle = OpenProcess(DWORD(PROCESS_TERMINATE), WINBOOL(0),
     DWORD(pid))
   if processHandle == 0 or processHandle == INVALID_HANDLE_VALUE:
-    return (false, false, uint32(GetLastError()))
+    return (false, false, "Win32 error " & $GetLastError())
   defer: discard CloseHandle(processHandle)
   if TerminateProcess(processHandle, DWORD(9)) == 0:
-    return (false, true, uint32(GetLastError()))
-  (true, true, 0'u32)
+    return (false, true, "Win32 error " & $GetLastError())
+  (true, true, "")
 
-proc startCommand*(command: string): string =
+proc startCommand*(command: string; console: var Console): string =
+  discard console
   var commandLine = newWideCString(command)
   var startupInfo: STARTUPINFOW
   startupInfo.cb = DWORD(sizeof(startupInfo))
@@ -517,3 +518,6 @@ proc registerConsoleControlHandler*(callback: ConsoleShutdownCallback) =
   if SetConsoleCtrlHandler(winConsoleCtrlHandler, WINBOOL(1)) == 0:
     raise newException(OSError,
       "SetConsoleCtrlHandler failed (Win32 error " & $GetLastError() & ")")
+
+proc shutdownRequested*(): bool =
+  false

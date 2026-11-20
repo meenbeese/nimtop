@@ -3,7 +3,8 @@
 [![Latest Release](https://img.shields.io/github/release/meenbeese/nimtop.svg)](https://github.com/meenbeese/nimtop/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-Nimtop is an htop-like process monitor for Windows, implemented in [Nim](https://nim-lang.org) with Vi-style commands.
+Nimtop is an htop-like process monitor for Windows and Linux, implemented in
+[Nim](https://nim-lang.org) as a native executable with Vi-style commands.
 
 ## Installation
 
@@ -48,7 +49,7 @@ $ nimble install nimtop
 
 | Command(s) | Purpose |
 |:---|:---|
-| `:exec` CMD | Executes the given Windows command. |
+| `:exec` CMD | Starts the given system command. |
 | `:kill` PID(s) | Kill all given processes. |
 | `:q`, `:quit` | Quit nimtop. |
 | `/PATTERN`, `:search` PATTERN | Do a search. |
@@ -56,7 +57,7 @@ $ nimble install nimtop
 | `:tree` | View process tree. |
 
 Command and search lines support Up/Down history. `:kill` accepts one or more
-process IDs; `:exec` starts the given Windows command.
+process IDs; `:exec` starts a command using the platform's command launcher.
 
 ## Configuration
 
@@ -67,8 +68,9 @@ Existing `ntop.conf` files are still read as a compatibility fallback.
 
 ### Nim
 
-The Nim application lives in [`src/`](src) and is built with Nim 2.x and
-[`winim`](https://github.com/khchen/winim):
+The Nim application lives in [`src/`](src) and is built with Nim 2.x.
+The Windows backend uses [`winim`](https://github.com/khchen/winim), installed
+automatically as a Windows-only dependency:
 
 ```sh
 $ nimble install -y --depsOnly
@@ -76,8 +78,8 @@ $ nimble release
 $ nimble test
 ```
 
-The release task produces a self-contained `nimtop.exe` with the package
-version.
+The release task embeds the package version and produces `nimtop.exe` on
+Windows or `nimtop` on Linux.
 
 The original C sources remain as a parity reference; Nimble is the supported
 build system.
