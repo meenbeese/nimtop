@@ -6,8 +6,6 @@ Nimtop is a cross-platform htop-like process monitor for Windows, macOS, and Lin
 
 ## Installation
 
-Once `nimtop` is listed in the Nimble package index, install it with:
-
 ```sh
 nimble install nimtop
 ```
@@ -91,5 +89,4 @@ and POSIX APIs; it requires no additional Nimble dependency.
 The Nim build includes process/system information, the interactive monitor,
 process-name search, and Vi commands. The port also fixes issues in the original
 implementation, including sort overflow, tree flattening, invalid PID handling,
-and unsafe input/history buffers. See [`PORT_TO_NIM.md`](PORT_TO_NIM.md) for
-implementation and compatibility details.
+and unsafe input/history buffers.
